@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - PetCare Services</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Animated background elements */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      top: 10%;
+      right: 10%;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    body::after {
+      content: '';
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+      bottom: 10%;
+      left: 10%;
+      animation: float 8s ease-in-out infinite reverse;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(10deg); }
+    }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 40px 40px;
+      border-radius: 20px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      animation: slideIn 0.6s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { 
+        opacity: 0; 
+        transform: translateY(30px) scale(0.95); 
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+      }
+    }
+
+    .login-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #3498db, #667eea, #764ba2);
+      animation: shimmer 2s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .brand-logo {
+      margin-bottom: 30px;
+    }
+
+    .brand {
+      font-size: 2.2rem;
+      font-weight: bold;
+      background: linear-gradient(135deg, #3498db, #667eea);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 5px;
+    }
+
+    .brand-subtitle {
+      font-size: 0.9rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-weight: 500;
+    }
+
+    .login-container h2 {
+      margin-bottom: 30px;
+      color: #333;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    .form-group {
+      position: relative;
+      margin-bottom: 25px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #999;
+      font-size: 1.1rem;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 16px 45px 16px 45px;
+      border: 2px solid #e1e8ed;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #fff;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+      transform: translateY(-2px);
+    }
+
+    input[type="text"]:valid,
+    input[type="password"]:valid {
+      border-color: #27ae60;
+    }
+
+    .password-container {
+      position: relative;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #3498db;
+      font-size: 1.1rem;
+      padding: 5px;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+
+    .toggle-password:hover {
+      background: rgba(52, 152, 219, 0.1);
+      color: #2980b9;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #2980b9, #3498db);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .error-message {
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: white;
+      padding: 12px 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      animation: shake 0.5s ease-in-out;
+      box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .forgot-password {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .forgot-password a {
+      color: #3498db;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.3s ease;
+    }
+
+    .forgot-password a:hover {
+      color: #2980b9;
+      text-decoration: underline;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive design */
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 40px 30px;
+        margin: 10px;
+      }
+
+      .brand {
+        font-size: 1.8rem;
+      }
+
+      .login-container h2 {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* Success animation */
+    .success-checkmark {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #27ae60;
+      position: relative;
+      margin-right: 10px;
+    }
+
+    .success-checkmark::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 3px;
+      width: 6px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="brand-logo">
+      <div class="brand">petcare</div>
+      <div class="brand-subtitle">PET SERVICES</div>
+    </div>
+    
+    <h2>Welcome Back</h2>
+    
+    <form method="POST" onsubmit="return validateForm()" id="loginForm">
+      <div class="error-message" id="errorMessage" style="display: none;">{{ error }}</div>
+      
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <div class="input-wrapper">
+          <span class="input-icon">📧</span>
+          <input type="text" name="email" id="email" placeholder="Enter your email" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-wrapper password-container">
+          <span class="input-icon">🔒</span>
+          <input type="password" name="password" id="password" placeholder="Enter your password" required>
+          <span class="toggle-password" onclick="togglePassword()">👁️</span>
+        </div>
+      </div>
+
+      <button type="submit" id="loginBtn">
+        <span id="btnText">Sign In</span>
+      </button>
+    </form>
+
+    
+  </div>
+
+  <script>
+    function validateForm() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const errorMsg = document.getElementById('errorMessage');
+      const loginBtn = document.getElementById('loginBtn');
+      const btnText = document.getElementById('btnText');
+      
+      // Hide previous error
+      errorMsg.style.display = 'none';
+      
+      if (!email || !password) {
+        showError("Both email and password are required.");
+        return false;
+      }
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        showError("Please enter a valid email address.");
+        return false;
+      }
+      
+      // Show loading state
+      btnText.innerHTML = '<span class="loading"></span>Signing in...';
+      loginBtn.disabled = true;
+      
+      // Simulate loading (remove this in actual implementation)
+      setTimeout(() => {
+        btnText.innerHTML = 'Sign In';
+        loginBtn.disabled = false;
+      }, 2000);
+      
+      return true;
+    }
+
+    function showError(message) {
+      const errorMsg = document.getElementById('errorMessage');
+      errorMsg.textContent = message;
+      errorMsg.style.display = 'block';
+      
+      // Add shake animation
+      errorMsg.style.animation = 'none';
+      setTimeout(() => {
+        errorMsg.style.animation = 'shake 0.5s ease-in-out';
+      }, 10);
+    }
+
+    function togglePassword() {
+      const passwordInput = document.getElementById('password');
+      const toggleBtn = document.querySelector('.toggle-password');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = '🙈';
+      } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = '👁️';
+      }
+    }
+
+    function showForgotPassword() {
+      alert('Forgot password functionality would be implemented here.');
+    }
+
+    // Add some interactive effects
+    document.addEventListener('DOMContentLoaded', function() {
+      const inputs = document.querySelectorAll('input');
+      
+      inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+          this.parentElement.style.transform = 'scale(1.02)';
+        });
+        
+        input.addEventListener('blur', function() {
+          this.parentElement.style.transform = 'scale(1)';
+        });
+      });
+    });
+
+    // Add floating labels effect
+    const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
+    
+    inputs.forEach(input => {
+      input.addEventListener('input', function() {
+        if (this.value.length > 0) {
+          this.style.borderColor = '#27ae60';
+        } else {
+          this.style.borderColor = '#e1e8ed';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

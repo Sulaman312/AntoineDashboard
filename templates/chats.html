@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat History</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/chat.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/header.css') }}"
+    />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="logo-link">
+        <div class="logo">
+          <span class="brand">petcare</span>
+          <span class="brand-subtitle">PET SERVICES</span>
+        </div>
+      </a>
+
+      <div class="header-controls">
+        <!-- Source Dropdown (Desktop) -->
+        <div class="dropdown desktop-only" id="sourceDropdown">
+          <button class="dropdown-btn">
+            Source <span class="dropdown-arrow">▼</span>
+          </button>
+          <div class="dropdown-content source-dropdown">
+            <div class="source-option select-all-option">
+              <label>
+                <input
+                  type="checkbox"
+                  id="selectAllSources"
+                  data-source="select-all"
+                />
+                Select All
+              </label>
+            </div>
+            <div class="source-option">
+              <label>
+                <input
+                  type="checkbox"
+                  value="whatsapp"
+                  data-source="whatsapp"
+                />
+                WhatsApp
+              </label>
+            </div>
+            <div class="source-option">
+              <label>
+                <input
+                  type="checkbox"
+                  value="facebook"
+                  data-source="facebook"
+                />
+                Facebook
+              </label>
+            </div>
+            <div class="source-option">
+              <label>
+                <input
+                  type="checkbox"
+                  value="instagram"
+                  data-source="instagram"
+                />
+                Instagram
+              </label>
+            </div>
+            <div class="source-option">
+              <label>
+                <input type="checkbox" value="website" data-source="website" />
+                Website
+              </label>
+            </div>
+            <div class="source-actions">
+              <button type="button" class="clear-sources">Clear All</button>
+              <button type="button" class="apply-sources">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Time Dropdown (Desktop) -->
+        <div class="dropdown desktop-only" id="timeDropdown">
+          <button class="dropdown-btn">
+            Date Range <span class="dropdown-arrow">▼</span>
+          </button>
+          <div class="dropdown-content">
+            <a data-value="today">Today</a>
+            <a data-value="yesterday">Yesterday</a>
+            <a data-value="this-week">This Week</a>
+            <a data-value="last-week">Last Week</a>
+            <a data-value="this-month">This Month</a>
+            <a data-value="last-month">Last Month</a>
+            <a data-value="custom" id="customDateOption">Custom Range</a>
+          </div>
+          <!-- Date picker dropdown container -->
+          <div class="date-picker-dropdown" id="datePickerDropdown">
+            <div class="calendar-container">
+              <div class="calendar-header">
+                <button id="prevMonth">&lt;</button>
+                <div id="currentMonth">March 2025</div>
+                <button id="nextMonth">&gt;</button>
+              </div>
+              <div class="weekdays">
+                <div>SUN</div>
+                <div>MON</div>
+                <div>TUE</div>
+                <div>WED</div>
+                <div>THU</div>
+                <div>FRI</div>
+                <div>SAT</div>
+              </div>
+              <div class="calendar-grid" id="calendarDays">
+                <!-- Calendar days will be generated here -->
+              </div>
+            </div>
+            <div class="action-buttons">
+              <button id="cancelBtn" class="cancel-btn">Cancel</button>
+              <button id="applyDateRange" class="apply-btn">Apply Range</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Search (Desktop) -->
+        <div class="user-search-wrapper desktop-only">
+          <input
+            type="text"
+            id="userSearchInput"
+            class="search-input"
+            placeholder="Username"
+            autocomplete="off"
+          />
+          <div id="suggestionContainer" class="suggestion-container"></div>
+        </div>
+
+        <!-- Search Button (Desktop) -->
+        <button id="searchBtn" class="search-btn desktop-only">Search</button>
+
+        <!-- Hamburger Icon (Mobile Only) -->
+        <button class="hamburger-menu" id="hamburgerMenu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+
+    <!-- Mobile Menu (Slides from Right) -->
+    <div class="mobile-menu" id="mobileMenu">
+      <button class="mobile-close-btn" id="mobileCloseBtn">✕</button>
+
+      <div class="mobile-menu-content">
+        <h3 class="mobile-menu-title">Filters & Search</h3>
+
+        <!-- Mobile Source Filter -->
+        <div class="mobile-filter-section">
+          <h4 class="mobile-section-title">📱 Source</h4>
+          <div class="mobile-source-options" id="mobileSourceOptions">
+            <label class="mobile-checkbox-item">
+              <input
+                type="checkbox"
+                id="mobileSelectAllSources"
+                data-source="select-all"
+              />
+              <span>Select All</span>
+            </label>
+            <label class="mobile-checkbox-item">
+              <input type="checkbox" value="whatsapp" data-source="whatsapp" />
+              <span>WhatsApp</span>
+            </label>
+            <label class="mobile-checkbox-item">
+              <input type="checkbox" value="facebook" data-source="facebook" />
+              <span>Facebook</span>
+            </label>
+            <label class="mobile-checkbox-item">
+              <input
+                type="checkbox"
+                value="instagram"
+                data-source="instagram"
+              />
+              <span>Instagram</span>
+            </label>
+            <label class="mobile-checkbox-item">
+              <input type="checkbox" value="website" data-source="website" />
+              <span>Website</span>
+            </label>
+          </div>
+          <div class="mobile-filter-actions">
+            <button
+              type="button"
+              class="mobile-clear-btn"
+              id="mobileClearSources"
+            >
+              Clear All
+            </button>
+            <button
+              type="button"
+              class="mobile-apply-btn"
+              id="mobileApplySources"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+
+        <!-- Mobile Date Range Filter -->
+        <div class="mobile-filter-section">
+          <h4 class="mobile-section-title">📅 Date Range</h4>
+          <div class="mobile-date-options">
+            <button class="mobile-date-btn" data-value="today">Today</button>
+            <button class="mobile-date-btn" data-value="yesterday">
+              Yesterday
+            </button>
+            <button class="mobile-date-btn" data-value="this-week">
+              This Week
+            </button>
+            <button class="mobile-date-btn" data-value="last-week">
+              Last Week
+            </button>
+            <button class="mobile-date-btn" data-value="this-month">
+              This Month
+            </button>
+            <button class="mobile-date-btn" data-value="last-month">
+              Last Month
+            </button>
+            <button
+              class="mobile-date-btn"
+              data-value="custom"
+              id="mobileCustomDateOption"
+            >
+              Custom Range
+            </button>
+          </div>
+
+          <!-- Mobile Date Picker (Hidden by default) -->
+          <div
+            class="mobile-date-picker"
+            id="mobileDatePicker"
+            style="display: none"
+          >
+            <div class="calendar-container">
+              <div class="calendar-header">
+                <button id="mobilePrevMonth">&lt;</button>
+                <div id="mobileCurrentMonth">March 2025</div>
+                <button id="mobileNextMonth">&gt;</button>
+              </div>
+              <div class="weekdays">
+                <div>SUN</div>
+                <div>MON</div>
+                <div>TUE</div>
+                <div>WED</div>
+                <div>THU</div>
+                <div>FRI</div>
+                <div>SAT</div>
+              </div>
+              <div class="calendar-grid" id="mobileCalendarDays">
+                <!-- Calendar days will be generated here -->
+              </div>
+            </div>
+            <div class="action-buttons">
+              <button id="mobileCancelBtn" class="cancel-btn">Cancel</button>
+              <button id="mobileApplyDateRange" class="apply-btn">
+                Apply Range
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile User Search -->
+        <div class="mobile-filter-section">
+          <h4 class="mobile-section-title">👤 Username Search</h4>
+          <div class="mobile-user-search">
+            <input
+              type="text"
+              id="mobileUserSearchInput"
+              class="mobile-search-input"
+              placeholder="Enter username..."
+              autocomplete="off"
+            />
+            <div
+              id="mobileSuggestionContainer"
+              class="mobile-suggestion-container"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Mobile Search Button -->
+        <div class="mobile-search-section">
+          <button id="mobileSearchBtn" class="mobile-search-btn">
+            <span>🔍</span> Search
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator">
+      <div class="loading-spinner"></div>
+    </div>
+
+    <main>
+      <div class="container">
+        <!-- <h1>Chat History</h1> -->
+
+        <!-- Chat List Section -->
+        <div class="chat-list" id="chatList">
+          <!-- Chat items will be generated here -->
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination">
+          <!-- Pagination buttons will be generated here -->
+        </div>
+
+        <!-- Download Button -->
+        <div class="download-container">
+          <button id="downloadCsvBtn" class="download-btn">
+            <svg
+              class="download-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+            >
+              <path
+                d="M12 16l-5-5h3V4h4v7h3l-5 5zm9 4v-2a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1z"
+              />
+            </svg>
+            Download CSV
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      // Global variables
+      let allChats = [];
+      let filteredChats = [];
+      let currentPage = 1;
+      const chatsPerPage = 10;
+
+      // Date picker variables
+      let currentDate = new Date();
+      let currentMonth = currentDate.getMonth();
+      let currentYear = currentDate.getFullYear();
+      let startDate = null;
+      let endDate = null;
+      let selectionPhase = "start"; // 'start' or 'end'
+      let selectedPeriod = "today"; // Default to today
+
+      // DOM elements
+      const timeDropdown = document.getElementById("timeDropdown");
+      const dropdownBtn = timeDropdown.querySelector(".dropdown-btn");
+      const dropdownContent = timeDropdown.querySelector(".dropdown-content");
+      const dropdownOptions = dropdownContent.querySelectorAll("a");
+      const customDateOption = document.getElementById("customDateOption");
+      const userSearchInput = document.getElementById("userSearchInput");
+      const searchBtn = document.getElementById("searchBtn");
+      const chatList = document.getElementById("chatList");
+      const pagination = document.getElementById("pagination");
+      const loadingIndicator = document.getElementById("loadingIndicator");
+      const datePickerDropdown = document.getElementById("datePickerDropdown");
+      const calendarDays = document.getElementById("calendarDays");
+      const currentMonthElement = document.getElementById("currentMonth");
+      const prevMonthBtn = document.getElementById("prevMonth");
+      const nextMonthBtn = document.getElementById("nextMonth");
+      const applyDateRangeBtn = document.getElementById("applyDateRange");
+      const cancelBtn = document.getElementById("cancelBtn");
+      let selectedSources = [];
+
+      // Add to DOM elements section
+      const sourceDropdown = document.getElementById("sourceDropdown");
+      const sourceDropdownBtn = sourceDropdown.querySelector(".dropdown-btn");
+      const sourceCheckboxes = sourceDropdown.querySelectorAll(
+        'input[type="checkbox"]'
+      );
+      const clearSourcesBtn = sourceDropdown.querySelector(".clear-sources");
+      const applySourcesBtn = sourceDropdown.querySelector(".apply-sources");
+      const selectAllCheckbox = document.getElementById("selectAllSources");
+
+      // Add to DOMContentLoaded event listener, after the existing checkbox event listeners
+      selectAllCheckbox.addEventListener("change", function () {
+        const isChecked = this.checked;
+
+        // Update all other checkboxes
+        sourceCheckboxes.forEach((checkbox) => {
+          if (checkbox !== selectAllCheckbox) {
+            checkbox.checked = isChecked;
+          }
+        });
+
+        updateSourceSelection();
+      });
+      // Add to DOMContentLoaded event listener
+      sourceDropdownBtn.addEventListener("click", function () {
+        sourceDropdown.classList.toggle("active");
+      });
+      // Prevent dropdown from closing when clicking inside
+      sourceDropdown
+        .querySelector(".dropdown-content")
+        .addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+
+      // Handle checkbox changes
+      sourceCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener("change", function () {
+          updateSourceSelection();
+        });
+      });
+
+      // Clear all sources
+      clearSourcesBtn.addEventListener("click", function () {
+        sourceCheckboxes.forEach((checkbox) => {
+          checkbox.checked = false;
+        });
+        updateSourceSelection();
+      });
+
+      // Apply sources (close dropdown)
+      applySourcesBtn.addEventListener("click", function () {
+        sourceDropdown.classList.remove("active");
+        applyFilters(); // Trigger search with new filters
+      });
+
+      // Parse URL parameters
+      function getUrlParameters() {
+        const params = new URLSearchParams(window.location.search);
+        const parameters = {};
+
+        // Get period parameter
+        if (params.has("period")) {
+          parameters.period = params.get("period");
+          console.log(`URL parameter - period: ${parameters.period}`);
+        }
+
+        // Get date range for custom period
+        if (params.has("start_date") && params.has("end_date")) {
+          parameters.startDate = params.get("start_date");
+          parameters.endDate = params.get("end_date");
+          console.log(
+            `URL parameter - date range: ${parameters.startDate} to ${parameters.endDate}`
+          );
+        }
+
+        // Get user filter
+        if (params.has("users")) {
+          try {
+            parameters.users = JSON.parse(
+              decodeURIComponent(params.get("users"))
+            );
+            console.log(
+              `URL parameter - users: ${JSON.stringify(parameters.users)}`
+            );
+          } catch (e) {
+            console.error("Error parsing users parameter:", e);
+          }
+        } else if (params.has("username")) {
+          parameters.username = params.get("username");
+          console.log(`URL parameter - username: ${parameters.username}`);
+        }
+
+        console.log("Parsed URL parameters:", parameters);
+        return parameters;
+      }
+
+      // Initialize the page
+      document.addEventListener("DOMContentLoaded", function () {
+        // Parse URL parameters
+        const urlParams = getUrlParameters();
+
+        // Set up dropdown toggle
+        dropdownBtn.addEventListener("click", function () {
+          timeDropdown.classList.toggle("active");
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener("click", function (event) {
+          if (!timeDropdown.contains(event.target)) {
+            timeDropdown.classList.remove("active");
+
+            // Also hide the date picker dropdown if it's visible
+            if (datePickerDropdown.style.display === "block") {
+              datePickerDropdown.style.display = "none";
+            }
+          }
+        });
+
+        // Set up download CSV button
+        const downloadCsvBtn = document.getElementById("downloadCsvBtn");
+        downloadCsvBtn.addEventListener("click", downloadChatsAsCsv);
+
+        // Fetch usernames for suggestions
+        fetchUsernames();
+
+        // Set up dropdown options
+        dropdownOptions.forEach((option) => {
+          option.addEventListener("click", function (event) {
+            const value = this.getAttribute("data-value");
+            selectedPeriod = value;
+
+            // Update dropdown text with selected option
+            const text = this.textContent;
+            dropdownBtn.innerHTML =
+              text + ' <span class="dropdown-arrow">▼</span>';
+
+            // Handle custom date range option
+            if (value === "custom") {
+              // Reset date selection
+              startDate = null;
+              endDate = null;
+              selectionPhase = "start";
+
+              // Reset calendar to current month
+              currentMonth = new Date().getMonth();
+              currentYear = new Date().getFullYear();
+
+              // Generate calendar
+              generateCalendar(currentMonth, currentYear);
+
+              // Show date picker dropdown
+              datePickerDropdown.style.display = "block";
+
+              // Don't close the dropdown menu yet
+              event.stopPropagation();
+              console.log(
+                "Opened date picker dropdown for custom date selection"
+              );
+            } else {
+              // Apply the selected predefined period
+              console.log(`Applying predefined period: ${value}`);
+
+              // Close dropdown
+              timeDropdown.classList.remove("active");
+
+              const filters = {
+                period: value,
+                username: userSearchInput.value.trim(),
+              };
+
+              // Reset to first page
+              currentPage = 1;
+
+              // Fetch chats with the selected period
+              fetchChats(filters);
+            }
+          });
+        });
+
+        // Apply URL parameters to filters
+        if (urlParams.period) {
+          selectedPeriod = urlParams.period;
+
+          // Find the matching dropdown option
+          const matchingOption = Array.from(dropdownOptions).find(
+            (option) => option.getAttribute("data-value") === urlParams.period
+          );
+
+          if (matchingOption) {
+            // Update dropdown text
+            dropdownBtn.innerHTML =
+              matchingOption.textContent +
+              ' <span class="dropdown-arrow">▼</span>';
+          }
+
+          // If custom period, set the date range
+          if (
+            urlParams.period === "custom" &&
+            urlParams.startDate &&
+            urlParams.endDate
+          ) {
+            try {
+              const startDateObj = new Date(urlParams.startDate);
+              const endDateObj = new Date(urlParams.endDate);
+
+              startDate = startDateObj;
+              endDate = endDateObj;
+
+              const shortStartDate = startDateObj.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              });
+              const shortEndDate = endDateObj.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              });
+
+              // Update dropdown text with the custom date range
+              dropdownBtn.innerHTML = `${shortStartDate} - ${shortEndDate} <span class="dropdown-arrow">▼</span>`;
+            } catch (e) {
+              console.error("Error parsing date range:", e);
+            }
+          }
+        }
+
+        // If users are provided, set the username search value to the first user
+        if (urlParams.users && urlParams.users.length > 0) {
+          userSearchInput.value = urlParams.users[0];
+        } else if (urlParams.username) {
+          userSearchInput.value = urlParams.username;
+        }
+
+        // Set up event listeners
+        searchBtn.addEventListener("click", applyFilters);
+
+        // Set up calendar navigation with stopPropagation
+        prevMonthBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          goToPrevMonth(e);
+        });
+
+        nextMonthBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          goToNextMonth(e);
+        });
+
+        // Set up action buttons with stopPropagation
+        applyDateRangeBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          applyDateRange();
+        });
+
+        cancelBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          closeModal();
+        });
+
+        // Add keyboard event for enter key in search input
+        userSearchInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            applyFilters();
+          }
+        });
+
+        // Make date picker click not close dropdown
+        datePickerDropdown.addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+
+        // Load initial data with URL parameters
+        fetchChats(urlParams);
+      });
+
+      // Function to fetch chats
+      function fetchChats(filters = {}) {
+        // Show loading indicator
+        loadingIndicator.style.display = "flex";
+
+        // Build query parameters
+        let queryParams = new URLSearchParams();
+
+        console.log(
+          "Fetching chats with filters:",
+          JSON.stringify(filters, null, 2)
+        );
+
+        // For custom date range, we'll directly use start_date and end_date without period
+        if (
+          filters.period === "custom" &&
+          filters.startDate &&
+          filters.endDate
+        ) {
+          queryParams.append("start_date", filters.startDate);
+          queryParams.append("end_date", filters.endDate);
+          console.log(
+            `Added custom date range: ${filters.startDate} to ${filters.endDate}`
+          );
+        } else if (filters.period) {
+          // For predefined periods, use the period parameter
+          queryParams.append("period", filters.period);
+          console.log(`Added period: ${filters.period}`);
+        }
+
+        if (filters.users && filters.users.length > 0) {
+          queryParams.append("username", filters.users[0]);
+          console.log(`Added user filter: ${filters.users[0]}`);
+        } else if (filters.username) {
+          queryParams.append("username", filters.username);
+          console.log(`Added username: ${filters.username}`);
+        }
+
+        // Build the final URL
+        const apiUrl = `/api/chats?${queryParams.toString()}`;
+        console.log("Fetching from URL:", apiUrl);
+
+        // Create a debugging function to check response headers
+        function debugResponse(response) {
+          console.log("Response status:", response.status);
+          console.log("Response headers:", [...response.headers.entries()]);
+          return response;
+        }
+
+        // Fetch data from API
+        fetch(apiUrl)
+          .then(debugResponse)
+          .then((response) => {
+            console.log(`API response status: ${response.status}`);
+            if (!response.ok) {
+              throw new Error(
+                `Network response was not ok: ${response.status}`
+              );
+            }
+            return response.json();
+          })
+          .then((data) => {
+            console.log("API response data:", data);
+            // Store the fetched chats
+            allChats = data.chats || [];
+            filteredChats = [...allChats];
+
+            // Render the chats
+            renderChats();
+
+            // Hide loading indicator
+            loadingIndicator.style.display = "none";
+          })
+          .catch((error) => {
+            console.error("Error fetching chats:", error);
+            chatList.innerHTML = `<div class="error-message">Error loading chats: ${error.message}</div>`;
+            loadingIndicator.style.display = "none";
+          });
+      }
+
+      // Function to render chats with pagination
+      function renderChats() {
+        if (filteredChats.length === 0) {
+          chatList.innerHTML =
+            '<div class="no-results">No chats found matching your criteria.</div>';
+          pagination.innerHTML = "";
+          return;
+        }
+
+        // Calculate pagination
+        const totalPages = Math.ceil(filteredChats.length / chatsPerPage);
+        const startIndex = (currentPage - 1) * chatsPerPage;
+        const endIndex = Math.min(
+          startIndex + chatsPerPage,
+          filteredChats.length
+        );
+        const currentChats = filteredChats.slice(startIndex, endIndex);
+
+        // Clear the chat list
+        chatList.innerHTML = "";
+
+        // Add each chat item
+        currentChats.forEach((chat) => {
+          const chatItem = document.createElement("div");
+          chatItem.className = "chat-item";
+
+          // Truncate answer if too long
+          const maxAnswerLength = 200;
+          let truncatedAnswer = chat.answer || "";
+          let showSeeMore = false;
+
+          if (truncatedAnswer.length > maxAnswerLength) {
+            truncatedAnswer =
+              truncatedAnswer.substring(0, maxAnswerLength) + "...";
+            showSeeMore = true;
+          }
+
+          chatItem.innerHTML = `
+                    <div class="chat-header">
+                        <div>Date: <span>${chat.date}</span></div>
+                    </div>
+                    <div>Username: <span class="username">${
+                      chat.username
+                    }</span></div>
+                    <div class="chat-question">Question: ${chat.question}</div>
+                    <div class="chat-answer">Answer: ${truncatedAnswer}</div>
+                    ${
+                      showSeeMore
+                        ? '<div class="see-more" data-chat-id="' +
+                          chat.id +
+                          '">See More</div>'
+                        : ""
+                    }
+                `;
+
+          // Add event listener for 'See More' button
+          if (showSeeMore) {
+            const seeMoreBtn = chatItem.querySelector(".see-more");
+            seeMoreBtn.addEventListener("click", function () {
+              // Replace truncated answer with full answer
+              chatItem.querySelector(".chat-answer").textContent =
+                "Answer: " + chat.answer;
+              // Remove the See More button
+              seeMoreBtn.remove();
+            });
+          }
+
+          chatList.appendChild(chatItem);
+        });
+
+        // Render pagination
+        renderPagination(totalPages);
+      }
+
+      // Function to render pagination buttons
+      function renderPagination(totalPages) {
+        pagination.innerHTML = "";
+
+        // Add previous button
+        const prevBtn = document.createElement("button");
+        prevBtn.innerHTML = "&laquo;";
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.addEventListener("click", () => {
+          if (currentPage > 1) {
+            currentPage--;
+            renderChats();
+          }
+        });
+        pagination.appendChild(prevBtn);
+
+        // Add page buttons
+        for (let i = 1; i <= totalPages; i++) {
+          const pageBtn = document.createElement("button");
+          pageBtn.textContent = i;
+          if (i === currentPage) {
+            pageBtn.classList.add("active");
+          }
+          pageBtn.addEventListener("click", () => {
+            currentPage = i;
+            renderChats();
+          });
+          pagination.appendChild(pageBtn);
+        }
+
+        // Add next button
+        const nextBtn = document.createElement("button");
+        nextBtn.innerHTML = "&raquo;";
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.addEventListener("click", () => {
+          if (currentPage < totalPages) {
+            currentPage++;
+            renderChats();
+          }
+        });
+        pagination.appendChild(nextBtn);
+      }
+
+      // Function to apply filters
+      function applyFilters() {
+        const filters = {
+          period: selectedPeriod,
+          username: userSearchInput.value.trim(),
+        };
+
+        // Add start and end dates if using custom date range
+        if (filters.period === "custom" && startDate && endDate) {
+          filters.startDate = formatDate(startDate);
+          filters.endDate = formatDate(endDate);
+        }
+
+        // Reset to first page
+        currentPage = 1;
+
+        // Fetch filtered chats
+        fetchChats(filters);
+      }
+
+      // Function to generate calendar
+      function generateCalendar(month, year) {
+        // Clear calendar
+        calendarDays.innerHTML = "";
+
+        // Update month/year display
+        const monthNames = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        currentMonthElement.textContent = `${monthNames[month]} ${year}`;
+
+        // Log current selection state
+        console.log("Generating calendar with current selection:");
+        console.log(
+          "- Start date:",
+          startDate ? startDate.toDateString() : "None"
+        );
+        console.log("- End date:", endDate ? endDate.toDateString() : "None");
+        console.log("- Selection phase:", selectionPhase);
+
+        // Get first day of month and number of days
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const lastMonth = month === 0 ? 11 : month - 1;
+        const lastMonthYear = month === 0 ? year - 1 : year;
+        const daysInLastMonth = new Date(
+          lastMonthYear,
+          lastMonth + 1,
+          0
+        ).getDate();
+
+        // Previous month days
+        for (let i = 0; i < firstDay; i++) {
+          const dayNumber = daysInLastMonth - firstDay + i + 1;
+          const dayElement = document.createElement("div");
+          dayElement.classList.add("day", "inactive");
+          dayElement.textContent = dayNumber;
+          calendarDays.appendChild(dayElement);
+        }
+
+        // Current month days
+        for (let i = 1; i <= daysInMonth; i++) {
+          const dayElement = document.createElement("div");
+          dayElement.classList.add("day");
+          dayElement.textContent = i;
+
+          // Create date object for this day
+          const currentDateObj = new Date(year, month, i);
+
+          // Check if this day is start date, end date, or in range
+          if (startDate && isSameDay(currentDateObj, startDate)) {
+            dayElement.id = "start-date";
+            dayElement.classList.add("selected-date");
+            dayElement.setAttribute("data-selected", "start");
+            console.log(`Marking day ${i} as start date`);
+          }
+
+          if (endDate && isSameDay(currentDateObj, endDate)) {
+            dayElement.id = "end-date";
+            dayElement.classList.add("selected-date");
+            dayElement.setAttribute("data-selected", "end");
+            console.log(`Marking day ${i} as end date`);
+          }
+
+          // Add in-range class for days between start and end dates
+          if (
+            startDate &&
+            endDate &&
+            currentDateObj > startDate &&
+            currentDateObj < endDate
+          ) {
+            dayElement.classList.add("in-range");
+          }
+
+          // Add click event to select date
+          dayElement.addEventListener("click", function (e) {
+            // Prevent event from bubbling up
+            e.stopPropagation();
+
+            const selectedDate = new Date(year, month, i);
+            console.log(`Selected date: ${selectedDate.toDateString()}`);
+
+            if (selectionPhase === "start") {
+              // Start date selection
+              startDate = selectedDate;
+              endDate = null;
+              selectionPhase = "end";
+              console.log(`Set start date: ${startDate.toDateString()}`);
+
+              // Apply style immediately
+              document
+                .querySelectorAll("#start-date, #end-date")
+                .forEach((el) => {
+                  el.removeAttribute("id");
+                  el.classList.remove("selected-date");
+                  el.removeAttribute("data-selected");
+                });
+              document.querySelectorAll(".in-range").forEach((el) => {
+                el.classList.remove("in-range");
+              });
+              this.id = "start-date";
+              this.classList.add("selected-date");
+              this.setAttribute("data-selected", "start");
+            } else {
+              // End date selection
+              if (selectedDate < startDate) {
+                // If end date is before start date, swap them
+                endDate = startDate;
+                startDate = selectedDate;
+                console.log(
+                  `Swapped dates: start=${startDate.toDateString()}, end=${endDate.toDateString()}`
+                );
+              } else {
+                endDate = selectedDate;
+                console.log(`Set end date: ${endDate.toDateString()}`);
+              }
+
+              // Reset for next selection
+              selectionPhase = "start";
+
+              // Redraw calendar to show selection
+              generateCalendar(month, year);
+            }
+          });
+
+          calendarDays.appendChild(dayElement);
+        }
+
+        // Next month days to fill the grid
+        const totalDaysDisplayed = firstDay + daysInMonth;
+        const remainingDays = 42 - totalDaysDisplayed; // 6 rows of 7 days
+
+        for (let i = 1; i <= remainingDays; i++) {
+          const dayElement = document.createElement("div");
+          dayElement.classList.add("day", "inactive");
+          dayElement.textContent = i;
+          calendarDays.appendChild(dayElement);
+        }
+
+        // Add some CSS to make selected dates more visible
+        const styleElement = document.getElementById("calendar-styles");
+        if (!styleElement) {
+          const newStyle = document.createElement("style");
+          newStyle.id = "calendar-styles";
+          newStyle.textContent = `
+                    .selected-date {
+                        background-color: #00a8ff !important;
+                        color: white !important;
+                        font-weight: bold;
+                        box-shadow: 0 0 5px rgba(0, 168, 255, 0.7);
+                        transform: scale(1.1);
+                        z-index: 2;
+                    }
+                    .in-range {
+                        background-color: rgba(0, 168, 255, 0.3) !important;
+                    }
+                    .day:hover {
+                        background-color: #e0f7ff !important;
+                        cursor: pointer;
+                        transform: scale(1.05);
+                    }
+                `;
+          document.head.appendChild(newStyle);
+        }
+      }
+
+      // Function to go to previous month
+      function goToPrevMonth(e) {
+        // Prevent event from bubbling up and closing the dropdown
+        if (e) e.stopPropagation();
+
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        generateCalendar(currentMonth, currentYear);
+      }
+
+      // Function to go to next month
+      function goToNextMonth(e) {
+        // Prevent event from bubbling up and closing the dropdown
+        if (e) e.stopPropagation();
+
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        generateCalendar(currentMonth, currentYear);
+      }
+
+      // Function to apply date range
+      function applyDateRange() {
+        console.log("Apply date range button clicked");
+
+        if (!startDate || !endDate) {
+          alert("Please select both start and end dates");
+          return;
+        }
+
+        console.log("Applying selected date range:", startDate, endDate);
+
+        // Validate dates are valid Date objects
+        if (
+          !(startDate instanceof Date) ||
+          !(endDate instanceof Date) ||
+          isNaN(startDate.getTime()) ||
+          isNaN(endDate.getTime())
+        ) {
+          alert("Invalid date selection. Please try again.");
+          return;
+        }
+
+        if (endDate < startDate) {
+          alert("End date must be after start date.");
+          return;
+        }
+
+        // Format dates for API and display
+        const formattedStartDate = formatDate(startDate);
+        const formattedEndDate = formatDate(endDate);
+
+        console.log(
+          "Formatted dates for API:",
+          formattedStartDate,
+          formattedEndDate
+        );
+
+        // Format dates for display
+        const shortStartDate = startDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        const shortEndDate = endDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+
+        // Update the dropdown text with the selected date range
+        dropdownBtn.innerHTML = `${shortStartDate} - ${shortEndDate} <span class="dropdown-arrow">▼</span>`;
+
+        // Set selected period to custom
+        selectedPeriod = "custom";
+
+        // Close date picker dropdown
+        datePickerDropdown.style.display = "none";
+
+        // Close main dropdown
+        timeDropdown.classList.remove("active");
+
+        // Create the filters with the selected date range
+        const filters = {
+          period: "custom",
+          startDate: formattedStartDate,
+          endDate: formattedEndDate,
+          username: userSearchInput.value.trim(),
+        };
+
+        console.log("Applying filters with custom date range:", filters);
+
+        // Reset to first page
+        currentPage = 1;
+
+        // Fetch filtered chats
+        fetchChats(filters);
+      }
+
+      // Function to close modal
+      function closeModal() {
+        datePickerDropdown.style.display = "none";
+
+        // Close parent dropdown if no date range was selected
+        if (!startDate || !endDate) {
+          timeDropdown.classList.remove("active");
+        }
+      }
+
+      // Helper function to check if two dates are the same day
+      function isSameDay(date1, date2) {
+        return (
+          date1.getDate() === date2.getDate() &&
+          date1.getMonth() === date2.getMonth() &&
+          date1.getFullYear() === date2.getFullYear()
+        );
+      }
+
+      // Helper function to format date as YYYY-MM-DD
+      function formatDate(date) {
+        if (!date) return "";
+
+        if (typeof date === "string") {
+          // Check if already in YYYY-MM-DD format
+          if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            console.log(`Date already formatted: ${date}`);
+            return date;
+          }
+
+          // Try to parse the string date
+          try {
+            date = new Date(date);
+          } catch (e) {
+            console.error(`Error parsing date string: ${date}`, e);
+            return "";
+          }
+        }
+
+        // Ensure date is a valid Date object
+        if (!(date instanceof Date) || isNaN(date)) {
+          console.error(`Invalid date object: ${date}`);
+          return "";
+        }
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+
+        const formatted = `${year}-${month}-${day}`;
+        console.log(`Formatted date: ${date.toDateString()} -> ${formatted}`);
+        return formatted;
+      }
+
+      // Helper function to format date for display in a more user-friendly format
+      function formatDisplayDate(date) {
+        if (!date) return "";
+
+        if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          // Already in YYYY-MM-DD format, convert to Date object
+          date = new Date(date);
+        }
+
+        if (!(date instanceof Date) || isNaN(date)) {
+          console.error(`Invalid date object for display: ${date}`);
+          return "";
+        }
+
+        // Format as MMM DD, YYYY (e.g., Jan 15, 2023)
+        const options = { month: "short", day: "numeric", year: "numeric" };
+        return date.toLocaleDateString("en-US", options);
+      }
+
+      // Function to escape CSV fields
+      function escapeCSV(field) {
+        if (field === null || field === undefined) {
+          return "";
+        }
+
+        // Convert to string
+        field = String(field);
+
+        // Check if the field contains commas, double quotes, or newlines
+        if (
+          field.includes(",") ||
+          field.includes('"') ||
+          field.includes("\n") ||
+          field.includes("\r")
+        ) {
+          // Escape double quotes by doubling them and wrap the field in double quotes
+          field = '"' + field.replace(/"/g, '""') + '"';
+        }
+
+        return field;
+      }
+
+      // Function to download chats as CSV
+      function downloadChatsAsCsv() {
+        if (allChats.length === 0) {
+          alert("No chat data available to download");
+          return;
+        }
+
+        console.log(`Preparing CSV download for ${allChats.length} chats`);
+
+        // Create CSV header
+        let csvContent = "Date,Username,Question,Answer\n";
+
+        // Add chat data rows
+        allChats.forEach((chat) => {
+          const date = escapeCSV(chat.date || "");
+          const username = escapeCSV(chat.username || "");
+          const question = escapeCSV(chat.question || "");
+          const answer = escapeCSV(chat.answer || "");
+
+          csvContent += `${date},${username},${question},${answer}\n`;
+        });
+
+        // Create a Blob with the CSV content
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+
+        // Create a filename based on current filter
+        let filename = "chat_history";
+        if (selectedPeriod) {
+          filename += `_${selectedPeriod}`;
+        }
+        if (userSearchInput.value.trim()) {
+          filename += `_${userSearchInput.value
+            .trim()
+            .replace(/[^a-zA-Z0-9]/g, "_")}`;
+        }
+        filename += ".csv";
+
+        // Create a download link
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.style.display = "none";
+
+        // Add to document, click to download, then remove
+        document.body.appendChild(link);
+        link.click();
+
+        // Clean up after download starts
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          console.log(`Download initiated: ${filename}`);
+        }, 100);
+      }
+
+      // Username suggestions functionality
+      let usernames = [];
+      let highlightedSuggestion = -1;
+      const suggestionContainer = document.getElementById(
+        "suggestionContainer"
+      );
+
+      // Function to fetch usernames for suggestions
+      function fetchUsernames() {
+        fetch("/api/usernames")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Network response was not ok");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            usernames = data.usernames || [];
+            console.log(`Loaded ${usernames.length} usernames for suggestions`);
+          })
+          .catch((error) => {
+            console.error("Error fetching usernames:", error);
+          });
+      }
+
+      // Set up username input suggestions
+      userSearchInput.addEventListener("input", function () {
+        const value = this.value.trim().toLowerCase();
+        suggestionContainer.innerHTML = "";
+        highlightedSuggestion = -1;
+
+        if (value.length < 1) {
+          suggestionContainer.style.display = "none";
+          return;
+        }
+
+        // Break the search into words for multi-term search
+        const searchTerms = value
+          .split(/\s+/)
+          .filter((term) => term.length > 0);
+
+        // Filter usernames that match all search terms
+        let matches = usernames.filter((username) => {
+          const usernameLower = username.toLowerCase();
+          // Must match all search terms
+          return searchTerms.every((term) => usernameLower.includes(term));
+        });
+
+        // Sort matches by relevance:
+        // 1. Starts with the first search term
+        // 2. Characters are consecutive (shorter distance between first and last match)
+        // 3. Alphabetical order
+        matches.sort((a, b) => {
+          const aLower = a.toLowerCase();
+          const bLower = b.toLowerCase();
+
+          // Check if either starts with the first search term
+          const firstTerm = searchTerms[0];
+          const aStartsWith = aLower.startsWith(firstTerm);
+          const bStartsWith = bLower.startsWith(firstTerm);
+
+          // If one starts with the search term but the other doesn't
+          if (aStartsWith && !bStartsWith) return -1;
+          if (!aStartsWith && bStartsWith) return 1;
+
+          // Calculate character gap score (lower is better)
+          const aGapScore = calculateCharacterGapScore(aLower, value);
+          const bGapScore = calculateCharacterGapScore(bLower, value);
+          if (aGapScore !== bGapScore) return aGapScore - bGapScore;
+
+          // Finally, sort alphabetically
+          return a.localeCompare(b);
+        });
+
+        if (matches.length === 0) {
+          suggestionContainer.style.display = "none";
+          return;
+        }
+
+        // Create suggestion items for matches (limit to 15 for performance)
+        const maxSuggestions = Math.min(15, matches.length);
+        for (let i = 0; i < maxSuggestions; i++) {
+          const username = matches[i];
+          const suggestionItem = document.createElement("div");
+          suggestionItem.className = "suggestion-item";
+
+          // Create highlighted version with proper consecutive matching
+          const usernameHTML = highlightMatchingText(username, value);
+          suggestionItem.innerHTML = usernameHTML;
+
+          suggestionItem.addEventListener("click", function () {
+            userSearchInput.value = username;
+            suggestionContainer.style.display = "none";
+            // Trigger the filter application
+            searchBtn.click();
+          });
+
+          suggestionItem.addEventListener("mouseover", function () {
+            highlightedSuggestion = i;
+            updateHighlightedSuggestion();
+          });
+
+          suggestionContainer.appendChild(suggestionItem);
+        }
+
+        suggestionContainer.style.display = "block";
+      });
+
+      // Helper function to calculate how closely the characters in the search value appear in the username
+      function calculateCharacterGapScore(username, searchValue) {
+        // For multi-word searches, calculate the total span of all terms
+        const searchTerms = searchValue
+          .split(/\s+/)
+          .filter((term) => term.length > 0);
+
+        if (searchTerms.length > 1) {
+          // For multi-term searches, find positions of each term and calculate total distance
+          let totalDistance = 0;
+          let lastPos = -1;
+
+          for (const term of searchTerms) {
+            const pos = username.indexOf(term);
+            if (pos === -1) continue;
+
+            if (lastPos !== -1) {
+              totalDistance += pos - lastPos;
+            }
+            lastPos = pos + term.length;
+          }
+
+          return totalDistance;
+        } else {
+          // For single-term searches or character-by-character matching
+          const searchTerm = searchValue.toLowerCase();
+
+          // First try to find exact consecutive match
+          const index = username.toLowerCase().indexOf(searchTerm);
+          if (index !== -1) {
+            // If exact consecutive match found, return position (earlier is better)
+            // Use a very low score to ensure consecutive matches are prioritized
+            return index;
+          }
+
+          // Try to find all characters in sequence (allows for 1 character between matches)
+          let score = 1000; // Start with a high score (worse)
+          let currentIndex = 0;
+
+          // For each possible starting position in the username
+          for (let start = 0; start < username.length; start++) {
+            let matchScore = 0;
+            let allMatched = true;
+            let lastMatchIndex = start - 1;
+
+            // Try to match all characters starting from this position
+            for (let i = 0; i < searchTerm.length; i++) {
+              const searchChar = searchTerm[i];
+              let found = false;
+
+              // Look ahead only a few positions to find next character
+              // This ensures characters must be close together
+              for (
+                let j = lastMatchIndex + 1;
+                j < Math.min(username.length, lastMatchIndex + 4);
+                j++
+              ) {
+                if (username[j].toLowerCase() === searchChar) {
+                  matchScore += j - lastMatchIndex - 1; // Add gap penalty
+                  lastMatchIndex = j;
+                  found = true;
+                  break;
+                }
+              }
+
+              if (!found) {
+                allMatched = false;
+                break;
+              }
+            }
+
+            // If all characters were found and the score is better
+            if (allMatched && matchScore < score) {
+              score = matchScore;
+
+              // If perfect consecutive match, return immediately
+              if (matchScore === 0) {
+                return start;
+              }
+            }
+          }
+
+          // Add start position to make earlier matches preferred
+          return score + 1000; // Add base penalty for non-consecutive matches
+        }
+      }
+
+      // Helper function to highlight text with consecutive character matching
+      function highlightMatchingText(text, searchValue) {
+        if (!searchValue) return text;
+
+        const searchTerms = searchValue
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((term) => term.length > 0);
+
+        // For multi-term search, highlight each term
+        if (searchTerms.length > 1) {
+          let result = text;
+          searchTerms.forEach((term) => {
+            if (!term) return;
+            const regex = new RegExp(
+              term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+              "gi"
+            );
+            result = result.replace(
+              regex,
+              (match) =>
+                `<span style="font-weight: bold; color: #3498db;">${match}</span>`
+            );
+          });
+          return result;
+        }
+
+        // For single term, try to find consecutive match first
+        const term = searchValue.toLowerCase();
+        const textLower = text.toLowerCase();
+        const index = textLower.indexOf(term);
+
+        // If exact consecutive match found, highlight it
+        if (index !== -1) {
+          const before = text.substring(0, index);
+          const match = text.substring(index, index + term.length);
+          const after = text.substring(index + term.length);
+          return `${before}<span style="font-weight: bold; color: #3498db;">${match}</span>${after}`;
+        }
+
+        // If no exact match, try to find best character sequence
+        let markedText = text;
+        let markPositions = [];
+
+        // Find best matching sequence
+        let bestStart = 0;
+        let bestScore = Infinity;
+
+        for (let start = 0; start < text.length; start++) {
+          let positions = [];
+          let lastPos = start - 1;
+          let matched = true;
+          let score = 0;
+
+          for (let i = 0; i < term.length; i++) {
+            const searchChar = term[i];
+            let found = false;
+
+            for (
+              let j = lastPos + 1;
+              j < Math.min(text.length, lastPos + 4);
+              j++
+            ) {
+              if (text[j].toLowerCase() === searchChar) {
+                positions.push(j);
+                score += j - lastPos - 1; // Gap penalty
+                lastPos = j;
+                found = true;
+                break;
+              }
+            }
+
+            if (!found) {
+              matched = false;
+              break;
+            }
+          }
+
+          if (matched && score < bestScore) {
+            bestScore = score;
+            markPositions = positions;
+
+            // If perfect match, break
+            if (score === 0) break;
+          }
+        }
+
+        // If we found a sequence to highlight
+        if (markPositions.length > 0) {
+          // Mark positions from end to beginning to avoid index shifting
+          let result = text;
+          let offset = 0;
+
+          // Sort positions to ensure they're in order
+          markPositions.sort((a, b) => a - b);
+
+          // Create an array of characters
+          const chars = result.split("");
+
+          // Mark each position
+          markPositions.forEach((pos) => {
+            chars[
+              pos
+            ] = `<span style="font-weight: bold; color: #3498db;">${chars[pos]}</span>`;
+          });
+
+          return chars.join("");
+        }
+
+        return text;
+      }
+
+      // Handle keyboard navigation for suggestions
+      userSearchInput.addEventListener("keydown", function (e) {
+        const suggestions =
+          suggestionContainer.querySelectorAll(".suggestion-item");
+
+        // Arrow down
+        if (e.key === "ArrowDown") {
+          highlightedSuggestion = Math.min(
+            highlightedSuggestion + 1,
+            suggestions.length - 1
+          );
+          updateHighlightedSuggestion();
+          e.preventDefault();
+        }
+
+        // Arrow up
+        else if (e.key === "ArrowUp") {
+          highlightedSuggestion = Math.max(highlightedSuggestion - 1, 0);
+          updateHighlightedSuggestion();
+          e.preventDefault();
+        }
+
+        // Enter key
+        else if (e.key === "Enter" && highlightedSuggestion >= 0) {
+          userSearchInput.value =
+            suggestions[highlightedSuggestion].textContent;
+          suggestionContainer.style.display = "none";
+          e.preventDefault();
+        }
+
+        // Escape key
+        else if (e.key === "Escape") {
+          suggestionContainer.style.display = "none";
+          highlightedSuggestion = -1;
+          e.preventDefault();
+        }
+      });
+
+      // Update highlighted suggestion
+      function updateHighlightedSuggestion() {
+        const suggestions =
+          suggestionContainer.querySelectorAll(".suggestion-item");
+
+        suggestions.forEach((item, index) => {
+          if (index === highlightedSuggestion) {
+            item.classList.add("active");
+            // Ensure the highlighted item is visible in the scrollable container
+            const container = suggestionContainer;
+            const itemTop = item.offsetTop;
+            const itemHeight = item.offsetHeight;
+            const containerTop = container.scrollTop;
+            const containerHeight = container.offsetHeight;
+
+            // If item is above visible area
+            if (itemTop < containerTop) {
+              container.scrollTop = itemTop;
+            }
+            // If item is below visible area
+            else if (itemTop + itemHeight > containerTop + containerHeight) {
+              container.scrollTop = itemTop + itemHeight - containerHeight;
+            }
+          } else {
+            item.classList.remove("active");
+          }
+        });
+      }
+
+      // Hide suggestions when clicking outside
+      document.addEventListener("click", function (e) {
+        if (
+          !userSearchInput.contains(e.target) &&
+          !suggestionContainer.contains(e.target)
+        ) {
+          suggestionContainer.style.display = "none";
+        }
+      });
+
+      // ==================== MOBILE HAMBURGER MENU ====================
+      const hamburgerMenu = document.getElementById("hamburgerMenu");
+      const mobileMenu = document.getElementById("mobileMenu");
+      const mobileMenuOverlay = document.getElementById("mobileMenuOverlay");
+      const mobileCloseBtn = document.getElementById("mobileCloseBtn");
+
+      // Open mobile menu
+      if (hamburgerMenu) {
+        hamburgerMenu.addEventListener("click", () => {
+          mobileMenu.classList.add("active");
+          mobileMenuOverlay.classList.add("active");
+          hamburgerMenu.classList.add("active");
+          document.body.style.overflow = "hidden";
+        });
+      }
+
+      // Close mobile menu
+      function closeMobileMenu() {
+        mobileMenu.classList.remove("active");
+        mobileMenuOverlay.classList.remove("active");
+        hamburgerMenu.classList.remove("active");
+        document.body.style.overflow = "auto";
+      }
+
+      if (mobileCloseBtn) {
+        mobileCloseBtn.addEventListener("click", closeMobileMenu);
+      }
+
+      if (mobileMenuOverlay) {
+        mobileMenuOverlay.addEventListener("click", closeMobileMenu);
+      }
+
+      // ==================== MOBILE SOURCE FILTER ====================
+      const mobileSelectAllSources = document.getElementById(
+        "mobileSelectAllSources"
+      );
+      const mobileSourceCheckboxes = document.querySelectorAll(
+        '.mobile-source-options input[type="checkbox"]:not(#mobileSelectAllSources)'
+      );
+      const mobileClearSources = document.getElementById("mobileClearSources");
+      const mobileApplySources = document.getElementById("mobileApplySources");
+
+      // Select All functionality
+      if (mobileSelectAllSources) {
+        mobileSelectAllSources.addEventListener("change", function () {
+          mobileSourceCheckboxes.forEach((checkbox) => {
+            checkbox.checked = this.checked;
+          });
+        });
+      }
+
+      // Update Select All when individual checkboxes change
+      mobileSourceCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          const allChecked = Array.from(mobileSourceCheckboxes).every(
+            (cb) => cb.checked
+          );
+          mobileSelectAllSources.checked = allChecked;
+        });
+      });
+
+      // Clear All
+      if (mobileClearSources) {
+        mobileClearSources.addEventListener("click", () => {
+          mobileSourceCheckboxes.forEach(
+            (checkbox) => (checkbox.checked = false)
+          );
+          mobileSelectAllSources.checked = false;
+        });
+      }
+
+      // Apply Sources
+      if (mobileApplySources) {
+        mobileApplySources.addEventListener("click", () => {
+          const selectedSources = Array.from(mobileSourceCheckboxes)
+            .filter((cb) => cb.checked)
+            .map((cb) => cb.value);
+
+          console.log("Selected sources:", selectedSources);
+          // Add your apply logic here
+
+          // Optionally sync with desktop
+          const desktopCheckboxes = document.querySelectorAll(
+            '#sourceDropdown input[type="checkbox"]:not(#selectAllSources)'
+          );
+          desktopCheckboxes.forEach((cb) => (cb.checked = false));
+          selectedSources.forEach((source) => {
+            const desktopCb = document.querySelector(
+              `#sourceDropdown input[value="${source}"]`
+            );
+            if (desktopCb) desktopCb.checked = true;
+          });
+        });
+      }
+
+      // ==================== MOBILE DATE RANGE ====================
+      const mobileDateBtns = document.querySelectorAll(".mobile-date-btn");
+      const mobileDatePicker = document.getElementById("mobileDatePicker");
+      const mobileCustomDateOption = document.getElementById(
+        "mobileCustomDateOption"
+      );
+
+      mobileDateBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          // Remove active class from all buttons
+          mobileDateBtns.forEach((b) => b.classList.remove("active"));
+
+          // Add active class to clicked button
+          btn.classList.add("active");
+
+          const value = btn.getAttribute("data-value");
+
+          if (value === "custom") {
+            mobileDatePicker.style.display = "block";
+          } else {
+            mobileDatePicker.style.display = "none";
+            console.log("Selected date range:", value);
+
+            // Sync with desktop
+            const desktopTimeDropdown = document.querySelector(
+              "#timeDropdown .dropdown-btn"
+            );
+            if (desktopTimeDropdown) {
+              desktopTimeDropdown.innerHTML = `${btn.textContent} <span class="dropdown-arrow">▼</span>`;
+            }
+          }
+        });
+      });
+
+      // Mobile date picker cancel
+      const mobileCancelBtn = document.getElementById("mobileCancelBtn");
+      if (mobileCancelBtn) {
+        mobileCancelBtn.addEventListener("click", () => {
+          mobileDatePicker.style.display = "none";
+          mobileDateBtns.forEach((b) => b.classList.remove("active"));
+        });
+      }
+
+      // Mobile date picker apply
+      const mobileApplyDateRange = document.getElementById(
+        "mobileApplyDateRange"
+      );
+      if (mobileApplyDateRange) {
+        mobileApplyDateRange.addEventListener("click", () => {
+          // Add your date range apply logic here
+          console.log("Apply custom date range");
+          mobileDatePicker.style.display = "none";
+        });
+      }
+
+      // ==================== MOBILE USER SEARCH ====================
+      const mobileUserSearchInput = document.getElementById(
+        "mobileUserSearchInput"
+      );
+      const mobileSuggestionContainer = document.getElementById(
+        "mobileSuggestionContainer"
+      );
+
+      if (mobileUserSearchInput) {
+        mobileUserSearchInput.addEventListener("input", (e) => {
+          const query = e.target.value.trim();
+
+          if (query.length > 0) {
+            // Add your search suggestion logic here
+            console.log("Searching for:", query);
+
+            // Sync with desktop
+            const desktopSearchInput =
+              document.getElementById("userSearchInput");
+            if (desktopSearchInput) {
+              desktopSearchInput.value = query;
+            }
+          }
+        });
+      }
+
+      // ==================== MOBILE SEARCH BUTTON ====================
+      const mobileSearchBtn = document.getElementById("mobileSearchBtn");
+      if (mobileSearchBtn) {
+        mobileSearchBtn.addEventListener("click", () => {
+          console.log("Mobile search triggered");
+
+          // Get all filter values
+          const selectedSources = Array.from(mobileSourceCheckboxes)
+            .filter((cb) => cb.checked)
+            .map((cb) => cb.value);
+
+          const activeDateBtn = document.querySelector(
+            ".mobile-date-btn.active"
+          );
+          const dateRange = activeDateBtn
+            ? activeDateBtn.getAttribute("data-value")
+            : null;
+
+          const username = mobileUserSearchInput.value.trim();
+
+          console.log({
+            sources: selectedSources,
+            dateRange: dateRange,
+            username: username,
+          });
+
+          // Trigger desktop search if needed
+          const desktopSearchBtn = document.getElementById("searchBtn");
+          if (desktopSearchBtn) {
+            desktopSearchBtn.click();
+          }
+
+          // Close mobile menu after search
+          closeMobileMenu();
+        });
+      }
+    </script>
+  </body>
+</html>

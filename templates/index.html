@@ -1,0 +1,2845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat History Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  
+</head>
+<body>
+<header>
+  <div class="logo">
+    <span class="brand">petcare</span>
+    <span class="brand-subtitle">PET SERVICES</span>
+  </div>
+
+  <!-- Navigation Tabs (Desktop) -->
+  <nav class="header-nav">
+    <a href="{{ url_for('dashboard') }}" class="nav-tab">Dashboard</a>
+    <a href="{{ url_for('upload_file') }}" class="nav-tab">Upload File</a>
+  </nav>
+
+  <div class="header-controls">
+    <!-- Time Dropdown (Desktop) -->
+    <div class="dropdown desktop-only" id="timeDropdown">
+      <button class="dropdown-btn">Today <span class="dropdown-arrow">▼</span></button>
+      <div class="dropdown-content">
+        <a data-value="today">Today</a>
+        <a data-value="yesterday">Yesterday</a>
+        <a data-value="this-week">This Week</a>
+        <a data-value="last-week">Last Week</a>
+        <a data-value="this-month">This Month</a>
+        <a data-value="last-month">Last Month</a>
+        <a data-value="custom">Custom Range</a>
+      </div>
+    </div>
+
+    <!-- Logout Button (Desktop) -->
+    <form action="{{ url_for('logout') }}" method="get" style="margin: 0;" class="desktop-only">
+      <button type="submit" class="logout-btn" style="
+        background-color: rgb(255, 255, 255);
+        color: black;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-size: 14px;
+        margin-left: 20px;
+        font-weight: bold;
+        cursor: pointer;
+      ">
+        Logout
+      </button>
+    </form>
+
+    <!-- Hamburger Icon (Mobile Only) -->
+    <button class="hamburger-menu" id="hamburgerMenu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+</header>
+
+<!-- Mobile Menu Overlay -->
+<div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+
+<!-- Mobile Menu (Slides from Right) -->
+<div class="mobile-menu" id="mobileMenu">
+  <button class="mobile-close-btn" id="mobileCloseBtn">✕</button>
+  
+  <div class="mobile-menu-content">
+    <h3 class="mobile-menu-title">Menu</h3>
+    
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav">
+      <a href="{{ url_for('dashboard') }}" class="mobile-nav-link">
+        <span class="mobile-nav-icon">📊</span>
+        Dashboard
+      </a>
+      <a href="{{ url_for('upload_file') }}" class="mobile-nav-link">
+        <span class="mobile-nav-icon">📤</span>
+        Upload File
+      </a>
+    </nav>
+
+    <!-- Mobile Time Dropdown -->
+    <div class="mobile-time-section">
+      <h4 class="mobile-section-title">Time Filter</h4>
+      <div class="dropdown mobile-dropdown" id="mobileTimeDropdown">
+        <button class="dropdown-btn mobile-dropdown-btn">
+          Today <span class="dropdown-arrow">▼</span>
+        </button>
+        <div class="dropdown-content mobile-dropdown-content">
+          <a data-value="today">Today</a>
+          <a data-value="yesterday">Yesterday</a>
+          <a data-value="this-week">This Week</a>
+          <a data-value="last-week">Last Week</a>
+          <a data-value="this-month">This Month</a>
+          <a data-value="last-month">Last Month</a>
+          <a data-value="custom">Custom Range</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mobile Logout -->
+    <div class="mobile-logout">
+      <form action="{{ url_for('logout') }}" method="get">
+        <button type="submit" class="mobile-logout-btn">
+          <span class="mobile-nav-icon">🚪</span>
+          Logout
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+    <!-- Date Range Picker Modal -->
+    <div id="datePickerModal" class="modal">
+        <div class="modal-content">
+            <div class="date-picker-form">
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button id="prevMonth">&lt;</button>
+                        <div id="currentMonth">March 2025</div>
+                        <button id="nextMonth">&gt;</button>
+                    </div>
+                    <div class="weekdays">
+                        <div>SUN</div>
+                        <div>MON</div>
+                        <div>TUE</div>
+                        <div>WED</div>
+                        <div>THU</div>
+                        <div>FRI</div>
+                        <div>SAT</div>
+                    </div>
+                    <div class="calendar-grid" id="calendarDays">
+                        <!-- Calendar days will be generated here -->
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button id="cancelBtn" class="cancel-btn">Cancel</button>
+                    <button id="applyDateRange" class="apply-btn">Apply Range</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <main>
+        <div class="dashboard-container">
+            <!-- Top part with charts and stats -->
+            <div class="dashboard-top">
+                <!-- Chart section -->
+                <div class="chart-container">
+                    <div class="line-graph-wrapper">
+                        <h2 style="color: #00a8ff; text-align: center; font-weight: bold; margin-bottom: 5px;">Chat History</h2>
+                    <canvas id="chatLineGraph"></canvas>
+                    </div>
+                    <div class="bar-chart-wrapper">
+                        <h2 style="color: #00a8ff; text-align: center; font-weight: bold; margin-bottom: 5px;">User Chats</h2>
+                        <canvas id="userBarChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Stats side -->
+                <div class="stats-side">
+                    <!-- Update the button to be center-aligned -->
+                    <!-- View All Chats button at the top -->
+                    <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 15px;">
+                        <a href="/chats" class="view-all-btn" id="viewAllBtn" style="width: 50%; font-size: 1rem; text-decoration: none; display: flex; justify-content: center; align-items: center;">View All Chats</a>
+                    </div>
+                    
+                    <!-- Card-style stats -->
+                    <div class="stat-cards">
+                        <div class="stat-card messages">
+                            <div class="stat-title">Total Chats</div>
+                            <div class="stat-value" id="totalMessages">0</div>
+                        </div>
+                        <div class="stat-card tickets">
+                            <div class="stat-title">Active Users</div>
+                            <div class="stat-value" id="ticketsCreated">0</div>
+                        </div>
+                    </div>
+                    
+                    <!-- User distribution/donut chart section -->
+                    <div class="user-distribution-container">
+                        <!-- <h3 style="color: #00a8ff; font-size: 1.5rem; font-weight: bold; text-align: center;">User Distribution</h3> -->
+                        <div class="donut-container">
+                            <canvas id="userDonutChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- User list section -->
+                    <div class="users-list-container">
+                        <h3 style="color: #00a8ff; font-size: 1.5rem; font-weight: bold; text-align: center;">Chat Users</h3>
+                        
+                        <!-- Search input for users -->
+                        <div class="search-container">
+                            <div class="search-input-wrapper">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="userSearchInput" class="user-search-input" placeholder="Search users...">
+                            </div>
+                            <div class="search-suggestions" id="searchSuggestions"></div>
+                        </div>
+                        
+                        <!-- Selected users filter section -->
+                        <div class="selected-users-container" id="selectedUsersContainer">
+                            <div class="selected-users-list" id="selectedUsersList"></div>
+                            <div class="filter-actions">
+                                <button class="clear-btn" id="clearFilterBtn">Clear</button>
+                                <button class="filter-btn" id="applyFilterBtn">Apply Filter</button>
+                            </div>
+                        </div>
+                        
+                        <!-- List of users -->
+                        <div class="users-list" id="usersList">
+                            <!-- Placeholder for user items -->
+                            <div class="loading-message">Loading users...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Register Chart.js plugins
+        Chart.register(ChartDataLabels);
+        
+        // Global variables for data management
+        let originalDashboardData = null; // Store the original data for the current period
+        let selectedUsers = new Set(); // Store selected user emails
+        
+        // Dropdown functionality
+        const dropdown = document.getElementById('timeDropdown');
+        const dropdownBtn = dropdown.querySelector('.dropdown-btn');
+        const dropdownOptions = dropdown.querySelectorAll('.dropdown-content a');
+        
+        // Date picker modal
+        const modal = document.getElementById('datePickerModal');
+        const applyBtn = document.getElementById('applyDateRange');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const calendarDays = document.getElementById('calendarDays');
+        const currentMonthElement = document.getElementById('currentMonth');
+        const prevMonthBtn = document.getElementById('prevMonth');
+        const nextMonthBtn = document.getElementById('nextMonth');
+        
+        // Calendar variables
+        let currentDate = new Date();
+        let currentMonth = currentDate.getMonth();
+        let currentYear = currentDate.getFullYear();
+        let startDate = null;
+        let endDate = null;
+        let selectionPhase = 'start'; // 'start' or 'end'
+        
+        // Global variables
+        let userFilter = [];
+        let selectedPeriod = 'today';
+        
+        // Show modal when clicking on Custom Range
+        dropdownBtn.addEventListener('click', function() {
+            dropdown.classList.toggle('active');
+        });
+        
+        dropdownOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                const value = this.getAttribute('data-value');
+                const text = this.textContent;
+                selectedPeriod = value;
+                
+                dropdown.classList.remove('active');
+                
+                if (value === 'custom') {
+                    // Initialize calendar with current month but don't set any dates
+                    startDate = null;
+                    endDate = null;
+                    selectionPhase = 'start';
+                    generateCalendar(currentMonth, currentYear);
+                    
+                    // Show the date picker modal below dropdown
+                    modal.style.display = 'block';
+                    
+                    // Hide dropdown while selecting dates
+                    dropdown.style.visibility = 'hidden';
+                } else {
+                    dropdownBtn.innerHTML = text + ' <span class="dropdown-arrow">▼</span>';
+                    fetchDataForPeriod(value);
+                }
+                
+                // Update the view all button with the selected period
+                updateViewAllButton();
+            });
+        });
+        
+        // Reset date selection
+        function resetDateSelection() {
+            startDate = null;
+            endDate = null;
+            selectionPhase = 'start';
+            currentMonth = currentDate.getMonth();
+            currentYear = currentDate.getFullYear();
+        }
+        
+        // Close the modal buttons
+        cancelBtn.addEventListener('click', function() {
+            modal.style.display = 'none';
+            dropdown.style.visibility = 'visible';
+            resetDateSelection();
+        });
+        
+        // Apply date range button
+        applyBtn.addEventListener('click', function() {
+            console.log("Apply button clicked, startDate:", startDate, "endDate:", endDate);
+            
+            if (startDate && endDate) {
+                applySelectedDateRange();
+            } else if (startDate) {
+                // If only start date is selected, use it as both start and end
+                endDate = new Date(startDate);
+                console.log("Only start date selected, using it for both:", startDate);
+                applySelectedDateRange();
+            } else {
+                alert('Please select at least a start date');
+            }
+        });
+        
+        // Close the modal by clicking outside - optional behavior
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+                dropdown.style.visibility = 'visible';
+                resetDateSelection();
+            }
+            
+            if (!event.target.matches('.dropdown-btn') && !event.target.matches('.dropdown-arrow')) {
+                dropdown.classList.remove('active');
+            }
+        });
+        
+        // Calendar navigation
+        prevMonthBtn.addEventListener('click', function() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            generateCalendar(currentMonth, currentYear);
+        });
+        
+        nextMonthBtn.addEventListener('click', function() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            generateCalendar(currentMonth, currentYear);
+        });
+        
+        // Generate calendar days
+        function generateCalendar(month, year) {
+            // Clear calendar
+            calendarDays.innerHTML = '';
+            
+            // Update month/year display
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            currentMonthElement.textContent = `${monthNames[month]} ${year}`;
+            
+            // Log current selection state
+            console.log("Generating calendar with current selection:");
+            console.log("- Start date:", startDate ? startDate.toDateString() : "None");
+            console.log("- End date:", endDate ? endDate.toDateString() : "None");
+            console.log("- Selection phase:", selectionPhase);
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const lastMonth = month === 0 ? 11 : month - 1;
+            const lastMonthYear = month === 0 ? year - 1 : year;
+            const daysInLastMonth = new Date(lastMonthYear, lastMonth + 1, 0).getDate();
+            
+            // Previous month days
+            for (let i = 0; i < firstDay; i++) {
+                const dayNumber = daysInLastMonth - firstDay + i + 1;
+                const dayElement = document.createElement('div');
+                dayElement.classList.add('day', 'inactive');
+                dayElement.textContent = dayNumber;
+                calendarDays.appendChild(dayElement);
+            }
+            
+            // Current month days
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayElement = document.createElement('div');
+                dayElement.classList.add('day');
+                dayElement.textContent = i;
+                
+                // Create date object for this day
+                const currentDateObj = new Date(year, month, i);
+                
+                // Check if this day is start date, end date, or in range
+                if (startDate && isSameDay(currentDateObj, startDate)) {
+                    dayElement.id = 'start-date';
+                    dayElement.classList.add('selected-date');
+                    dayElement.setAttribute('data-selected', 'start');
+                    console.log(`Marking day ${i} as start date`);
+                }
+                
+                if (endDate && isSameDay(currentDateObj, endDate)) {
+                    dayElement.id = 'end-date';
+                    dayElement.classList.add('selected-date');
+                    dayElement.setAttribute('data-selected', 'end');
+                    console.log(`Marking day ${i} as end date`);
+                }
+                
+                // Add in-range class for days between start and end dates
+                if (startDate && endDate && 
+                    currentDateObj > startDate && 
+                    currentDateObj < endDate) {
+                    dayElement.classList.add('in-range');
+                }
+                
+                // Add click event to select date
+                dayElement.addEventListener('click', function() {
+                    const selectedDate = new Date(year, month, i);
+                    console.log(`Selected date: ${selectedDate.toDateString()}`);
+                    
+                    if (selectionPhase === 'start') {
+                        // Start date selection
+                        startDate = selectedDate;
+                        endDate = null;
+                        selectionPhase = 'end';
+                        console.log(`Set start date: ${startDate.toDateString()}`);
+                        
+                        // Apply style immediately
+                        document.querySelectorAll('#start-date, #end-date').forEach(el => {
+                            el.removeAttribute('id');
+                            el.classList.remove('selected-date');
+                            el.removeAttribute('data-selected');
+                        });
+                        document.querySelectorAll('.in-range').forEach(el => {
+                            el.classList.remove('in-range');
+                        });
+                        this.id = 'start-date';
+                        this.classList.add('selected-date');
+                        this.setAttribute('data-selected', 'start');
+                    } else {
+                        // End date selection
+                        if (selectedDate < startDate) {
+                            // If end date is before start date, swap them
+                            endDate = startDate;
+                            startDate = selectedDate;
+                            console.log(`Swapped dates: start=${startDate.toDateString()}, end=${endDate.toDateString()}`);
+                        } else {
+                            endDate = selectedDate;
+                            console.log(`Set end date: ${endDate.toDateString()}`);
+                        }
+                        
+                        // Reset for next selection
+                        selectionPhase = 'start';
+                        
+                        // Redraw calendar to show selection
+                        generateCalendar(month, year);
+                    }
+                });
+                
+                calendarDays.appendChild(dayElement);
+            }
+            
+            // Next month days to fill the grid
+            const totalDaysDisplayed = firstDay + daysInMonth;
+            const remainingDays = 42 - totalDaysDisplayed; // 6 rows of 7 days
+            
+            for (let i = 1; i <= remainingDays; i++) {
+                const dayElement = document.createElement('div');
+                dayElement.classList.add('day', 'inactive');
+                dayElement.textContent = i;
+                calendarDays.appendChild(dayElement);
+            }
+            
+            // Add some CSS to make selected dates more visible
+            const styleElement = document.getElementById('calendar-styles');
+            if (!styleElement) {
+                const newStyle = document.createElement('style');
+                newStyle.id = 'calendar-styles';
+                newStyle.textContent = `
+                    .selected-date {
+                        background-color: #00a8ff !important;
+                        color: white !important;
+                        font-weight: bold;
+                        box-shadow: 0 0 5px rgba(0, 168, 255, 0.7);
+                        transform: scale(1.1);
+                        z-index: 2;
+                    }
+                    .in-range {
+                        background-color: rgba(0, 168, 255, 0.3) !important;
+                    }
+                    .day:hover {
+                        background-color: #e0f7ff !important;
+                        cursor: pointer;
+                        transform: scale(1.05);
+                    }
+                `;
+                document.head.appendChild(newStyle);
+            }
+        }
+        
+        // Check if two dates are the same day
+        function isSameDay(date1, date2) {
+            return date1.getDate() === date2.getDate() && 
+                   date1.getMonth() === date2.getMonth() && 
+                   date1.getFullYear() === date2.getFullYear();
+        }
+        
+        // Format date as YYYY-MM-DD
+        function formatDate(date) {
+            if (!date) return '';
+            
+            if (typeof date === 'string') {
+                // Check if already in YYYY-MM-DD format
+                if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                    console.log(`Date already formatted: ${date}`);
+                    return date;
+                }
+                
+                // Try to parse the string date
+                try {
+                    date = new Date(date);
+                } catch (e) {
+                    console.error(`Error parsing date string: ${date}`, e);
+                    return '';
+                }
+            }
+            
+            // Ensure date is a valid Date object
+            if (!(date instanceof Date) || isNaN(date)) {
+                console.error(`Invalid date object: ${date}`);
+                return '';
+            }
+            
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            const formatted = `${year}-${month}-${day}`;
+            console.log(`Formatted date: ${date} -> ${formatted}`);
+            return formatted;
+        }
+        
+        // Function to pass current filters to the chats page
+        function updateViewAllButton() {
+            // Find the view all button element using the correct ID
+            const viewAllButton = document.getElementById('viewAllBtn');
+            
+            if (!viewAllButton) {
+                console.error("View All button not found in the document");
+                return;
+            }
+            
+            let url = "/chats";
+            
+            // Add parameters based on selected filters
+            const params = new URLSearchParams();
+            
+            console.log("Updating view all button with period:", selectedPeriod);
+            
+            // Add period parameter
+            if (selectedPeriod) {
+                params.append('period', selectedPeriod);
+            }
+            
+            // Add date range for custom period
+            if (selectedPeriod === 'custom' && startDate && endDate) {
+                const formattedStartDate = formatDate(startDate);
+                const formattedEndDate = formatDate(endDate);
+                
+                console.log(`Adding custom dates: ${formattedStartDate} to ${formattedEndDate}`);
+                
+                params.append('start_date', formattedStartDate);
+                params.append('end_date', formattedEndDate);
+            }
+            
+            // Add user filter
+            if (userFilter) {
+                params.append('users', encodeURIComponent(JSON.stringify([userFilter])));
+            }
+            
+            // Build the final URL
+            if (params.toString()) {
+                url += '?' + params.toString();
+            }
+            
+            console.log("View All URL:", url);
+            viewAllButton.href = url;
+        }
+        
+        // Update view all button whenever filters change
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial button update
+            updateViewAllButton();
+            
+            // Add filter change listeners
+            dropdownOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const value = this.getAttribute('data-value');
+                    selectedPeriod = value;
+                    updateViewAllButton();
+                });
+            });
+            
+            // Update button after custom date range is applied
+            document.getElementById('applyDateRange').addEventListener('click', function() {
+                updateViewAllButton();
+            });
+        });
+        
+        // Function to apply the selected date range
+        function applySelectedDateRange() {
+            console.log("Applying selected date range:", startDate, endDate);
+            
+            // Validate dates
+            if (!startDate || !endDate) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+            
+            // Validate dates are valid Date objects
+            if (!(startDate instanceof Date) || !(endDate instanceof Date) || 
+                isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                alert("Invalid date selection. Please try again.");
+                return;
+            }
+            
+            if (endDate < startDate) {
+                alert("End date must be after start date.");
+                return;
+            }
+            
+            // Format dates for API
+            const formattedStartDate = formatDate(startDate);
+            const formattedEndDate = formatDate(endDate);
+            
+            console.log("Formatted dates for API:", formattedStartDate, formattedEndDate);
+            
+            // Update dropdown text to show the custom date range
+            const shortStartDate = startDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+            const shortEndDate = endDate.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+            dropdownBtn.innerHTML = `${shortStartDate} - ${shortEndDate} <span class="dropdown-arrow">▼</span>`;
+            
+            // Set period to custom
+            selectedPeriod = 'custom';
+            
+            // Fetch data for the selected range with properly formatted dates
+            fetchCustomDateData(formattedStartDate, formattedEndDate, userFilter);
+            
+            // Close date picker modal and show dropdown
+            modal.style.display = 'none';
+            dropdown.style.visibility = 'visible';
+            
+            // Update view all button
+            updateViewAllButton();
+        }
+        
+        // Function to fetch data for a specific period
+        function fetchDataForPeriod(period) {
+            console.log(`Fetching data for period: ${period}`);
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.querySelector('.donut-container').innerHTML = '<div class="loading-message">Loading data...</div>';
+            document.getElementById('usersList').innerHTML = '<div class="loading-message">Loading users...</div>';
+            
+            // Reset user selection when changing periods
+            selectedUsers.clear();
+            updateSelectedUsersTags();
+            
+            // Build the URL with period parameter
+            let url = `/api/chat_data?period=${period}`;
+            
+            // Add user filter if needed
+            if (selectedUsers.size > 0) {
+                const userFilterArray = Array.from(selectedUsers);
+                url += `&users=${encodeURIComponent(JSON.stringify(userFilterArray))}`;
+            }
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Data received for period ${period}:`, data);
+                    // Store original data
+                    originalDashboardData = JSON.parse(JSON.stringify(data));
+                    
+                    // Update dashboard with the data
+                    updateDashboard({
+                        linechart_data: {
+                            labels: data.labels,
+                            values: data.values
+                        },
+                        total_messages: data.total_messages,
+                        active_users: data.user_percentages ? data.user_percentages.length : 0,
+                        user_percentages: data.user_percentages,
+                        tickets_created: data.tickets_created,
+                        period: period
+                    });
+                    
+                    // Hide loading indicator
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error(`Error fetching data for period ${period}:`, error);
+                    document.querySelector('.donut-container').innerHTML = '<div class="no-data-message-small">Error loading user data</div>';
+                    document.getElementById('usersList').innerHTML = '<div class="no-users-message">Error loading user data</div>';
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                });
+        }
+        
+        // Function to fetch data for custom date range with optional user filter
+        function fetchCustomDateData(startDate, endDate, userFilter = null) {
+            showLoadingIndicator();
+            
+            console.log(`Fetching custom date data from ${startDate} to ${endDate}`);
+            console.log('Current user filter:', userFilter);
+            
+            // Format dates if they're not already
+            const formattedStartDate = formatDate(startDate);
+            const formattedEndDate = formatDate(endDate);
+            
+            console.log(`Using formatted dates: ${formattedStartDate} to ${formattedEndDate}`);
+            
+            // Need to include period=custom in the URL to ensure backend uses custom date handling
+            let url = `/api/chat_data?period=custom&start_date=${formattedStartDate}&end_date=${formattedEndDate}`;
+            
+            // Add user filter if present
+            if (userFilter) {
+                if (Array.isArray(userFilter)) {
+                    url += `&users=${encodeURIComponent(JSON.stringify(userFilter))}`;
+                    console.log(`Added user filter array: ${JSON.stringify(userFilter)}`);
+                } else {
+                    url += `&username=${encodeURIComponent(userFilter)}`;
+                    console.log(`Added user filter: ${userFilter}`);
+                }
+            }
+            
+            console.log("Fetching from URL:", url);
+            console.log("Calling Backend API...");
+            
+            // Create a debugging function to check response headers
+            function debugResponse(response) {
+                console.log("Response status:", response.status);
+                console.log("Response headers:", [...response.headers.entries()]);
+                return response;
+            }
+            
+            fetch(url)
+                .then(debugResponse)
+                .then(response => {
+                    console.log(`API response status: ${response.status}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("API response data received:", data);
+                    
+                    if (data.error) {
+                        console.error("API returned error:", data.error);
+                        throw new Error(data.error);
+                    }
+                    
+                    // Check for empty data
+                    if (!data || 
+                        (!data.labels && !data.linechart_data) || 
+                        (data.total_messages === 0 && !data.user_percentages?.length)) {
+                        console.log("API returned empty data or no matching records");
+                    }
+                    
+                    // Process and display the data
+                    processData(data);
+                    
+                    // Update global variables
+                    selectedPeriod = 'custom';
+                    if (typeof startDate === 'string') {
+                        window.startDate = new Date(startDate);
+                    } else {
+                        window.startDate = startDate;
+                    }
+                    
+                    if (typeof endDate === 'string') {
+                        window.endDate = new Date(endDate);
+                    } else {
+                        window.endDate = endDate;
+                    }
+                    
+                    // Hide loading indicator
+                    hideLoadingIndicator();
+                })
+                .catch(error => {
+                    console.error('Error fetching custom date data:', error);
+                    displayError(`Failed to load data: ${error.message}`);
+                    hideLoadingIndicator();
+                    
+                    // Attempt fallback to alternative API endpoint as a last resort
+                    if (!error.message.includes('tried alternative')) {
+                        console.log("Attempting fallback to alternative API endpoint...");
+                        let fallbackUrl = `/data?start=${formattedStartDate}&end=${formattedEndDate}`;
+                        
+                        if (userFilter) {
+                            if (Array.isArray(userFilter)) {
+                                fallbackUrl += `&users=${encodeURIComponent(JSON.stringify(userFilter))}`;
+                            } else {
+                                fallbackUrl += `&username=${encodeURIComponent(userFilter)}`;
+                            }
+                        }
+                        
+                        console.log("Fallback URL:", fallbackUrl);
+                        
+                        fetch(fallbackUrl)
+                            .then(debugResponse)
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`Fallback endpoint failed: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log("Fallback API response:", data);
+                                processData(data);
+                                hideLoadingIndicator();
+                            })
+                            .catch(fallbackError => {
+                                console.error('Fallback endpoint also failed:', fallbackError);
+                                displayError(`Failed to load data after fallback: ${fallbackError.message}`);
+                                hideLoadingIndicator();
+                            });
+                    }
+                });
+        }
+        
+        // Define a vibrant color palette
+        const vibrantPalette = [
+            '#4361ee', '#3a0ca3', '#7209b7', '#f72585', '#4cc9f0', 
+            '#4895ef', '#560bad', '#b5179e', '#f15bb5', '#00b4d8',
+            '#1e88e5', '#5e35b1', '#d81b60', '#8e24aa', '#00897b',
+            '#43a047', '#fb8c00', '#e53935', '#6d4c41', '#546e7a'
+        ];
+
+        // Generate a pastel color palette for a softer look
+        const pastelPalette = [
+            '#a0d2eb', '#d0bdf4', '#e5eaf5', '#d0d1ff', '#fee2b3',
+            '#fad6d6', '#caffbf', '#9bf6ff', '#ffc6ff', '#fdffb6',
+            '#ffadad', '#bdb2ff', '#ffc8dd', '#fffffc', '#a8dadc',
+            '#e0c3fc', '#faedcb', '#c6def1', '#cbf1f5', '#ffe5ec'
+        ];
+
+        // Modern gradient palette
+        const gradientPalette = [
+            'linear-gradient(135deg, #6a11cb, #2575fc)',
+            'linear-gradient(135deg, #ff416c, #ff4b2b)',
+            'linear-gradient(135deg, #4facfe, #00f2fe)',
+            'linear-gradient(135deg, #43e97b, #38f9d7)',
+            'linear-gradient(135deg, #fa709a, #fee140)',
+            'linear-gradient(135deg, #667eea, #764ba2)',
+            'linear-gradient(135deg, #f77062, #fe5196)',
+            'linear-gradient(135deg, #a9c9ff, #ffbbec)',
+            'linear-gradient(135deg, #2af598, #009efd)',
+            'linear-gradient(135deg, #ffaa85, #b3315f)'
+        ];
+
+        // Create user bar chart 
+        let userBarChart = null;
+
+        // Function to create the user bar chart with improved error handling
+        function createUserBarChart(userData) {
+            console.log('Creating user bar chart with data:', userData);
+            
+            const barChartWrapper = document.querySelector('.bar-chart-wrapper');
+            
+            try {
+                // Update title styling
+                const titleElement = barChartWrapper.querySelector('h2');
+                if (titleElement) {
+                    titleElement.textContent = "User Chats";
+                    titleElement.style.color = "#00a8ff";
+                    titleElement.style.textAlign = "center";
+                    titleElement.style.fontWeight = "bold";
+                    titleElement.style.marginBottom = "5px";
+                }
+                
+                // Create a custom legend for better styling
+                if (!barChartWrapper.querySelector('.chart-legend')) {
+                    const legendContainer = document.createElement('div');
+                    legendContainer.className = 'chart-legend';
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    
+                    const legendColor = document.createElement('div');
+                    legendColor.className = 'legend-color';
+                    legendColor.style.backgroundColor = '#36A2EB';
+                    
+                    const legendText = document.createElement('span');
+                    legendText.textContent = 'Chats';
+                    
+                    legendItem.appendChild(legendColor);
+                    legendItem.appendChild(legendText);
+                    legendContainer.appendChild(legendItem);
+                    
+                    barChartWrapper.insertBefore(legendContainer, document.getElementById('userBarChart'));
+                }
+                
+                // Ensure we have the canvas
+                let canvas = document.getElementById('userBarChart');
+                if (!canvas) {
+                    // If the canvas doesn't exist, the container might have been replaced
+                    // Restore the original structure
+                    barChartWrapper.innerHTML = '<h2 style="color: #e83e8c; text-align: center; font-weight: bold; margin-bottom: 5px;">Weekly Chat Volume</h2><div class="chart-legend"><div class="legend-item"><div class="legend-color" style="background-color: #36A2EB;"></div><span>Chats per Day</span></div></div><canvas id="userBarChart"></canvas>';
+                    canvas = document.getElementById('userBarChart');
+                }
+                
+                const ctx = canvas.getContext('2d');
+                
+                // If we already have a chart, destroy it
+                if (userBarChart) {
+                    userBarChart.destroy();
+                }
+                
+                // Check if we have valid data
+                if (!userData || !Array.isArray(userData) || userData.length === 0) {
+                    // Create a fallback bar chart
+                    createFallbackBarChart(ctx);
+                    return;
+                }
+                
+                // Filter valid users (those with username and count)
+                const validUsers = userData.filter(user => 
+                    user && typeof user === 'object' && 
+                    user.username && 
+                    typeof user.count === 'number' && 
+                    !isNaN(user.count)
+                );
+                
+                if (validUsers.length === 0) {
+                    // Create a fallback bar chart
+                    createFallbackBarChart(ctx);
+                    return;
+                }
+                
+                // Sort users by count (descending)
+                const sortedData = [...validUsers].sort((a, b) => b.count - a.count);
+                
+                // Limit to top 16 users to prevent overcrowding and allow wider bars
+                const displayData = sortedData.slice(0, 16);
+                
+                // Prepare data for chart
+                const labels = displayData.map(user => {
+                    // Extract username from email and truncate if necessary
+                    const email = user.username;
+                    const username = email.split('@')[0]; // Get the part before @
+                    if (username.length > 15) {
+                        return username.substring(0, 12) + '...';
+                    }
+                    return username;
+                });
+                const values = displayData.map(user => user.count);
+                
+                // Create a vibrant color palette (similar to the image)
+                const barColors = [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
+                    '#FF9F40', '#32CD32', '#BA55D3', '#00BFFF', '#FD6864',
+                    '#1E90FF', '#FF8C00', '#20B2AA', '#FF69B4', '#7B68EE',
+                    '#66CDAA', '#FFB6C1', '#00FA9A', '#F08080', '#87CEEB'
+                ];
+                
+                // Configure dynamic colors - one per user
+                const backgroundColors = labels.map((_, index) => barColors[index % barColors.length]);
+                
+                // Create the chart
+                userBarChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Chats',
+                            data: values,
+                            backgroundColor: backgroundColors,
+                            borderWidth: 0,
+                            borderRadius: 4,
+                            maxBarThickness: 35,
+                            minBarLength: 5,
+                            barPercentage: 0.95, // Increase from 0.9 for wider bars
+                            categoryPercentage: 0.95 // Increase from 0.8 for less space between bars
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        layout: {
+                            padding: {
+                                top: 5,
+                                bottom: 5,
+                                left: 5,
+                                right: 5
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(200, 200, 200, 0.3)',
+                                    lineWidth: 1,
+                                    drawBorder: false,
+                                    drawOnChartArea: true
+                                },
+                                border: {
+                                    display: false // Hide Y-axis line
+                                },
+                                ticks: {
+                                    precision: 0, // No decimal places
+                                    font: {
+                                        family: "'Poppins', sans-serif",
+                                        size: 12
+                                    },
+                                    color: '#555'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(200, 200, 200, 0.3)',
+                                    lineWidth: 1,
+                                    drawBorder: false,
+                                    drawOnChartArea: true
+                                },
+                                border: {
+                                    display: false // Hide X-axis line
+                                },
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45,
+                                    font: {
+                                        family: "'Poppins', sans-serif",
+                                        size: 11
+                                    },
+                                    color: '#555'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false // Hide default legend as we're using custom
+                            },
+                            title: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                titleFont: {
+                                    family: "'Poppins', sans-serif",
+                                    size: 14
+                                },
+                                bodyFont: {
+                                    family: "'Poppins', sans-serif",
+                                    size: 14
+                                },
+                                padding: 12,
+                                displayColors: false,
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        // Display the full email address in tooltip
+                                        const index = tooltipItems[0].dataIndex;
+                                        const email = displayData[index].username;
+                                        const username = email.split('@')[0];
+                                        return username + ' (' + email + ')';
+                                    },
+                                    label: function(context) {
+                                        return `Messages: ${context.parsed.y}`;
+                                    }
+                                }
+                            },
+                            datalabels: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error creating bar chart:', error);
+                // Create a fallback on any error
+                try {
+                    createFallbackBarChart(document.getElementById('userBarChart').getContext('2d'));
+                } catch (fallbackError) {
+                    barChartWrapper.innerHTML = '<h2 style="color: #e83e8c; text-align: center; font-weight: bold; margin-bottom: 5px;">Weekly Chat Volume</h2><div class="no-data-message">No user data available</div>';
+                }
+            }
+        }
+
+        // Function to create a fallback bar chart when there's no data
+        function createFallbackBarChart(ctx) {
+            try {
+                // If we already have a chart, destroy it
+                if (userBarChart) {
+                    userBarChart.destroy();
+                }
+                
+                // Update title styling
+                const barChartWrapper = document.querySelector('.bar-chart-wrapper');
+                const titleElement = barChartWrapper.querySelector('h2');
+                if (titleElement) {
+                    titleElement.textContent = "User Chats";
+                    titleElement.style.color = "#00a8ff";
+                    titleElement.style.textAlign = "center";
+                    titleElement.style.fontWeight = "bold";
+                    titleElement.style.marginBottom = "5px";
+                }
+                
+                // Make sure we have a custom legend
+                if (!barChartWrapper.querySelector('.chart-legend')) {
+                    const legendContainer = document.createElement('div');
+                    legendContainer.className = 'chart-legend';
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    
+                    const legendColor = document.createElement('div');
+                    legendColor.className = 'legend-color';
+                    legendColor.style.backgroundColor = '#36A2EB';
+                    
+                    const legendText = document.createElement('span');
+                    legendText.textContent = 'Chats';
+                    
+                    legendItem.appendChild(legendColor);
+                    legendItem.appendChild(legendText);
+                    legendContainer.appendChild(legendItem);
+                    
+                    barChartWrapper.insertBefore(legendContainer, document.getElementById('userBarChart'));
+                }
+                
+                // Create a placeholder bar chart
+                userBarChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['No Data Available'],
+                        datasets: [{
+                            label: 'Chats',
+                            data: [0],
+                            backgroundColor: ['#f3f3f3'],
+                            borderWidth: 0,
+                            borderRadius: 4,
+                            barPercentage: 0.95,
+                            categoryPercentage: 0.95
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        layout: {
+                            padding: {
+                                top: 5,
+                                bottom: 5,
+                                left: 5,
+                                right: 5
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 1,
+                                ticks: {
+                                    display: false
+                                },
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(200, 200, 200, 0.3)',
+                                    lineWidth: 1,
+                                    drawBorder: false,
+                                    drawOnChartArea: true
+                                },
+                                border: {
+                                    display: false
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(200, 200, 200, 0.3)',
+                                    lineWidth: 1,
+                                    drawBorder: false,
+                                    drawOnChartArea: true
+                                },
+                                border: {
+                                    display: false
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: false
+                            },
+                            datalabels: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+                
+                // Add a message below the chart via DOM
+                const messageExists = barChartWrapper.querySelector('.no-data-message-below');
+                
+                if (!messageExists) {
+                    const messageEl = document.createElement('div');
+                    messageEl.className = 'no-data-message-below';
+                    messageEl.style.textAlign = 'center';
+                    messageEl.style.marginTop = '10px';
+                    messageEl.style.color = '#666';
+                    messageEl.style.fontStyle = 'italic';
+                    messageEl.textContent = 'No user data available for this period';
+                    barChartWrapper.appendChild(messageEl);
+                }
+                
+            } catch (error) {
+                console.error('Error creating fallback bar chart:', error);
+                document.querySelector('.bar-chart-wrapper').innerHTML = '<h2 style="color: #e83e8c; text-align: center; font-weight: bold; margin-bottom: 5px;">Weekly Chat Volume</h2><div class="no-data-message">No user data available</div>';
+            }
+        }
+
+        // Updated createDonutChart function with improved error handling
+        function createDonutChart(userData) {
+            console.log('Creating donut chart with user data:', userData);
+            
+            // Get the canvas element
+            const donutContainer = document.querySelector('.donut-container');
+            
+            try {
+                // Clear previous content
+                donutContainer.innerHTML = '';
+                
+                // Create a new canvas element
+                const canvas = document.createElement('canvas');
+                canvas.id = 'userDonutChart';
+                donutContainer.appendChild(canvas);
+                
+                // Check if we have valid data
+                if (!userData || !Array.isArray(userData) || userData.length === 0) {
+                    console.warn('No valid user data for donut chart');
+                    // Create a fallback donut chart with empty data
+                    createFallbackDonutChart(canvas);
+                    return;
+                }
+                
+                // Check if we have a valid context
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.error('Could not get canvas context');
+                    createFallbackDonutChart(canvas);
+                    return;
+                }
+                
+                // Validate that we have usernames and counts
+                const validUsers = userData.filter(user => 
+                    user && typeof user === 'object' && 
+                    user.username && 
+                    typeof user.count === 'number' && 
+                    !isNaN(user.count)
+                );
+                
+                if (validUsers.length === 0) {
+                    console.warn('No valid users with usernames and counts');
+                    createFallbackDonutChart(canvas);
+                    return;
+                }
+                
+                // Prepare the data for the chart
+                const labels = validUsers.map(user => {
+                    const email = user.username;
+                    return email.split('@')[0]; // Get the part before @
+                });
+                const values = validUsers.map(user => user.count);
+                
+                // Use vibrant palette colors
+                const backgroundColors = labels.map((_, index) => vibrantPalette[index % vibrantPalette.length]);
+                
+                // Create the chart
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: backgroundColors,
+                            borderColor: 'white',
+                            borderWidth: 2,
+                            hoverOffset: 15
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const index = context.dataIndex;
+                                        const email = validUsers[index].username;
+                                        const username = email.split('@')[0];
+                                        const value = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100);
+                                        return `${username} (${email}): ${value} (${percentage}%)`;
+                                    }
+                                },
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                titleFont: {
+                                    family: "'Poppins', sans-serif",
+                                    size: 14,
+                                    weight: 'bold'
+                                },
+                                bodyFont: {
+                                    family: "'Poppins', sans-serif",
+                                    size: 14
+                                },
+                                padding: 12,
+                                displayColors: true
+                            },
+                            datalabels: {
+                                color: 'white',
+                                font: {
+                                    weight: 'bold',
+                                    size: 12
+                                },
+                                formatter: (value, ctx) => {
+                                    const total = ctx.dataset.data.reduce((acc, data) => acc + data, 0);
+                                    const percentage = (value / total * 100).toFixed(1) + '%';
+                                    return percentage;
+                                },
+                                display: function(context) {
+                                    // Only show labels for segments that are at least 5% of the total
+                                    const total = context.dataset.data.reduce((acc, data) => acc + data, 0);
+                                    const value = context.dataset.data[context.dataIndex];
+                                    return (value / total) >= 0.05;
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating donut chart:', error);
+                // On any error, create a fallback chart
+                try {
+                    createFallbackDonutChart(donutContainer.querySelector('canvas') || document.createElement('canvas'));
+                } catch (fallbackError) {
+                    donutContainer.innerHTML = '<div class="no-data-message-small">No user data available</div>';
+                }
+            }
+        }
+
+        // Function to create a fallback donut chart when there's no data
+        function createFallbackDonutChart(canvas) {
+            const donutContainer = document.querySelector('.donut-container');
+            
+            try {
+                // Clear container if needed
+                if (!donutContainer.contains(canvas)) {
+                    donutContainer.innerHTML = '';
+                    donutContainer.appendChild(canvas);
+                }
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Create a placeholder chart
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['No Data'],
+                        datasets: [{
+                            data: [1],
+                            backgroundColor: ['#e9ecef'],
+                            borderColor: 'white',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function() {
+                                        return 'No data available';
+                                    }
+                                }
+                            },
+                            datalabels: {
+                                color: '#999',
+                                formatter: () => 'No Data',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Add a message below the chart
+                const messageEl = document.createElement('div');
+                messageEl.className = 'no-data-message-small';
+                messageEl.style.marginTop = '10px';
+                messageEl.style.background = 'none';
+                messageEl.style.border = 'none';
+                messageEl.style.padding = '0';
+                messageEl.textContent = 'No user data available for this period';
+                donutContainer.appendChild(messageEl);
+                
+            } catch (error) {
+                console.error('Error creating fallback donut chart:', error);
+                donutContainer.innerHTML = '<div class="no-data-message-small">No user data available</div>';
+            }
+        }
+        
+        // Function to update the users list
+        function updateUsersList(userData) {
+            const usersListElement = document.getElementById('usersList');
+            
+            // Clear existing list
+            usersListElement.innerHTML = '';
+            
+            // Check if valid user data exists
+            if (!userData || !Array.isArray(userData) || userData.length === 0) {
+                usersListElement.innerHTML = '<div class="no-users-message">No users found for this period</div>';
+                return;
+            }
+            
+            // Sort users by message count (descending)
+            const sortedUsers = [...userData].sort((a, b) => b.count - a.count);
+            
+            // Add users to the list
+            sortedUsers.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.setAttribute('data-email', user.username);
+                
+                // Check if this user is in the selected users set
+                if (selectedUsers.has(user.username)) {
+                    userItem.classList.add('selected');
+                }
+                
+                const userEmail = document.createElement('div');
+                userEmail.className = 'user-email';
+                userEmail.textContent = user.username; // Show full email
+                userEmail.title = user.username;
+                
+                const userCount = document.createElement('div');
+                userCount.className = 'user-count';
+                userCount.textContent = user.count;
+                
+                // Add click event for selection
+                userItem.addEventListener('click', function() {
+                    toggleUserSelection(user, this);
+                });
+                
+                userItem.appendChild(userEmail);
+                userItem.appendChild(userCount);
+                usersListElement.appendChild(userItem);
+            });
+            
+            // Store current user data for filtering
+            window.currentUserData = sortedUsers;
+        }
+        
+        // Function to populate the users list with the given user data
+        function populateUsersList(users) {
+            const usersListContainer = document.getElementById('usersList');
+            usersListContainer.innerHTML = '';
+            
+            if (!users || users.length === 0) {
+                usersListContainer.innerHTML = '<div class="no-users-message">No users found for this period</div>';
+                return;
+            }
+            
+            // Sort users by message count in descending order
+            users.sort((a, b) => b.count - a.count);
+            
+            users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.setAttribute('data-email', user.username);
+                
+                // Check if this user is in the selected users set
+                if (selectedUsers.has(user.username)) {
+                    userItem.classList.add('selected');
+                }
+                
+                const userEmail = document.createElement('div');
+                userEmail.className = 'user-email';
+                userEmail.textContent = user.username; // Full email address
+                userEmail.title = user.username;
+                
+                const userCount = document.createElement('div');
+                userCount.className = 'user-count';
+                userCount.textContent = user.count;
+                
+                userItem.appendChild(userEmail);
+                userItem.appendChild(userCount);
+                
+                // Add click event for selection
+                userItem.addEventListener('click', function() {
+                    toggleUserSelection(user, this);
+                });
+                
+                usersListContainer.appendChild(userItem);
+            });
+            
+            // Store current user data for filtering
+            window.currentUserData = users;
+        }
+        
+        // Function to toggle user selection
+        function toggleUserSelection(user, userItemElement) {
+            const email = user.username;
+            
+            if (selectedUsers.has(email)) {
+                // Deselect user
+                selectedUsers.delete(email);
+                
+                // Update UI to show deselection
+                if (userItemElement) {
+                    userItemElement.classList.remove('selected');
+            } else {
+                    // Find and update all user items with this email
+                    document.querySelectorAll(`.user-item[data-email="${email}"]`).forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                }
+            } else {
+                // Select user
+                selectedUsers.add(email);
+                
+                // Update UI to show selection
+                if (userItemElement) {
+                    userItemElement.classList.add('selected');
+                } else {
+                    // Find and update all user items with this email
+                    document.querySelectorAll(`.user-item[data-email="${email}"]`).forEach(item => {
+                        item.classList.add('selected');
+                    });
+                }
+            }
+            
+            // Update the selected users tags display
+            updateSelectedUsersTags();
+        }
+        
+        // Function to update selected users tags display
+        function updateSelectedUsersTags() {
+            // Update userFilter for view all button
+            userFilter = Array.from(selectedUsers);
+            
+            // Update the view all button
+            updateViewAllButton();
+            
+            const selectedUsersContainer = document.getElementById('selectedUsersContainer');
+            const selectedUsersList = document.getElementById('selectedUsersList');
+            
+            // Clear current tags
+            selectedUsersList.innerHTML = '';
+            
+            // If no users selected, hide container
+            if (selectedUsers.size === 0) {
+                selectedUsersContainer.style.display = 'none';
+                return;
+            }
+            
+            // Show container
+            selectedUsersContainer.style.display = 'flex';
+            
+            // Add tags for each selected user
+            selectedUsers.forEach(email => {
+                const tag = document.createElement('div');
+                tag.className = 'selected-user-tag';
+                
+                const tagText = document.createElement('span');
+                tagText.className = 'tag-text';
+                tagText.textContent = email; // Show full email in tag
+                tagText.title = email;
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-tag';
+                removeBtn.innerHTML = '×';
+                removeBtn.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent event bubbling
+                    selectedUsers.delete(email);
+                    
+                    // Update UI to reflect the removal
+                    updateSelectedUsersTags();
+                    
+                    // Also remove selection from the list item
+                    const userItem = document.querySelector(`.user-item[data-email="${email}"]`);
+                    if (userItem) {
+                        userItem.classList.remove('selected');
+                    }
+                });
+                
+                tag.appendChild(tagText);
+                tag.appendChild(removeBtn);
+                selectedUsersList.appendChild(tag);
+            });
+        }
+        
+        // Function to apply user filter
+        function applyUserFilter() {
+            // Make sure we have users selected
+            if (selectedUsers.size === 0) {
+                alert('Please select at least one user to filter');
+                return;
+            }
+
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'flex';
+            
+            // Add filter active indicator
+            const filterActiveIndicator = document.createElement('div');
+            filterActiveIndicator.className = 'filter-active-indicator';
+            filterActiveIndicator.textContent = '✓';
+            
+            // Remove existing indicators
+            document.querySelectorAll('.filter-active-indicator').forEach(el => el.remove());
+            
+            // Add indicator to selected users container
+            selectedUsersContainer.appendChild(filterActiveIndicator);
+            
+            // Get current period from dropdown
+            const currentPeriod = document.querySelector('.dropdown-btn').textContent.trim().toLowerCase();
+            let period = 'today';
+            
+            // Match the period
+            if (currentPeriod.includes('yesterday')) {
+                period = 'yesterday';
+            } else if (currentPeriod.includes('this week')) {
+                period = 'this-week';
+            } else if (currentPeriod.includes('last week')) {
+                period = 'last-week';
+            } else if (currentPeriod.includes('this month')) {
+                period = 'this-month';
+            } else if (currentPeriod.includes('last month')) {
+                period = 'last-month';
+            } else if (currentPeriod.includes('-')) { // Detect date range format like "Mar 15 - Mar 20"
+                period = 'custom';
+            }
+            
+            // Create array of selected user emails for filtering
+            const filterEmails = Array.from(selectedUsers);
+            
+            console.log(`Applying user filter for period: ${period} with users:`, filterEmails);
+            
+            // If custom period is active, get the custom date range
+            if (period === 'custom') {
+                const dateText = document.querySelector('.dropdown-btn').textContent.trim();
+                const dateMatch = dateText.match(/(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})/);
+                
+                if (dateMatch && dateMatch.length >= 3) {
+                    const startDate = dateMatch[1];
+                    const endDate = dateMatch[2];
+                    console.log(`Custom date range detected: ${startDate} to ${endDate}`);
+                    
+                    // Fetch data for custom date range with user filter
+                    fetchCustomDateData(startDate, endDate, filterEmails);
+                } else {
+                    console.warn('Could not parse custom date range, using general fetchDataForPeriod function');
+                    fetchDataForPeriodWithUserFilter(period, filterEmails);
+                }
+            } else {
+                // Use the general fetch function for standard periods
+                fetchDataForPeriodWithUserFilter(period, filterEmails);
+            }
+        }
+        
+        // Function to clear user filter and ensure donut chart remains consistent
+        function clearUserFilter() {
+            // Clear selected users
+            selectedUsers.clear();
+            
+            // Reset the selected users list display
+            const selectedUsersList = document.getElementById('selectedUsersList');
+            selectedUsersList.innerHTML = '';
+            
+            // Hide the container
+            const selectedUsersContainer = document.getElementById('selectedUsersContainer');
+            selectedUsersContainer.style.display = 'none';
+            
+            // Remove selection from all user items
+            document.querySelectorAll('.user-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Remove filter indicators
+            document.querySelectorAll('.filter-active-indicator').forEach(el => el.remove());
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'flex';
+            
+            // Get current period from dropdown
+            const currentPeriod = document.querySelector('.dropdown-btn').textContent.trim().toLowerCase();
+            let period = 'today';
+            
+            // Match the period 
+            if (currentPeriod.includes('yesterday')) {
+                period = 'yesterday';
+            } else if (currentPeriod.includes('this week')) {
+                period = 'this-week';
+            } else if (currentPeriod.includes('last week')) {
+                period = 'last-week';
+            } else if (currentPeriod.includes('this month')) {
+                period = 'this-month';
+            } else if (currentPeriod.includes('last month')) {
+                period = 'last-month';
+            } else if (currentPeriod.includes('-')) { // Detect date range format like "Mar 15 - Mar 20"
+                period = 'custom';
+            }
+            
+            console.log(`Clearing user filter and refreshing data for period: ${period}`);
+            
+            // If custom period is active, handle the custom date range
+            if (period === 'custom') {
+                const dateText = document.querySelector('.dropdown-btn').textContent.trim();
+                const dateMatch = dateText.match(/(\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2})/);
+                
+                if (dateMatch && dateMatch.length >= 3) {
+                    const startDate = dateMatch[1];
+                    const endDate = dateMatch[2];
+                    console.log(`Custom date range detected: ${startDate} to ${endDate}`);
+                    fetchCustomDateData(startDate, endDate);
+                } else {
+                    console.warn('Could not parse custom date range, falling back to today');
+                    fetchDataForPeriod('today');
+                }
+            } else {
+                // Use the standard fetch function for predefined periods
+                fetchDataForPeriod(period);
+            }
+        }
+        
+        // Function to fetch data for period with user filter
+        function fetchDataForPeriodWithUserFilter(period, userFilter) {
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'flex';
+            
+            // Build URL with period and user filter
+            let url = `/api/chat_data?period=${period}`;
+            
+            if (userFilter && userFilter.length > 0) {
+                url += `&users=${encodeURIComponent(JSON.stringify(userFilter))}`;
+            }
+            
+            console.log(`Fetching filtered data from: ${url}`);
+            
+            // Fetch data from server
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Filtered data received for period ${period}:`, data);
+                    
+                    // Update dashboard with the data
+                    updateDashboard({
+                        linechart_data: {
+                            labels: data.labels,
+                            values: data.values
+                        },
+                        total_messages: data.total_messages,
+                        active_users: data.user_percentages ? data.user_percentages.length : 0,
+                        user_percentages: data.user_percentages,
+                        tickets_created: data.tickets_created,
+                        period: period
+                    }, period);
+                    
+                    // Hide loading indicator
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error(`Error fetching filtered data: ${error}`);
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    document.querySelector('.donut-container').innerHTML = '<div class="no-data-message-small">Error loading filtered data</div>';
+                    document.getElementById('usersList').innerHTML = '<div class="no-users-message">Error loading filtered data</div>';
+                    document.querySelector('.bar-chart-wrapper').innerHTML = '<h2 style="color: #00a8ff; text-align: center; font-weight: bold; margin-bottom: 5px;">User Chats</h2><div class="no-data-message">Error loading data</div>';
+                });
+        }
+        
+        // Initialize search functionality
+        function initializeSearch() {
+            const searchInput = document.getElementById('userSearchInput');
+            const suggestionsContainer = document.getElementById('searchSuggestions');
+            const applyFilterBtn = document.getElementById('applyFilterBtn');
+            const clearFilterBtn = document.getElementById('clearFilterBtn');
+            
+            // Clear any existing event listeners
+            searchInput.removeEventListener('input', handleSearchInput);
+            
+            // Add new event listener
+            searchInput.addEventListener('input', handleSearchInput);
+            
+            // Clear search input
+            searchInput.value = '';
+            
+            // Add event listeners to filter buttons
+            applyFilterBtn.addEventListener('click', applyUserFilter);
+            clearFilterBtn.addEventListener('click', clearUserFilter);
+            
+            // Handle clicks outside the suggestions
+            document.addEventListener('click', function(event) {
+                if (!searchInput.contains(event.target) && !suggestionsContainer.contains(event.target)) {
+                    suggestionsContainer.classList.remove('active');
+                }
+            });
+        }
+        
+        // Function to handle search input events
+        function handleSearchInput(event) {
+            const searchTerm = event.target.value.trim().toLowerCase();
+            const suggestionsContainer = document.getElementById('searchSuggestions');
+            
+            if (!window.currentUserData || searchTerm === '') {
+                suggestionsContainer.classList.remove('active');
+                return;
+            }
+            
+            // Filter users based on search term
+            const filteredUsers = window.currentUserData.filter(user => 
+                user.username.toLowerCase().includes(searchTerm)
+            );
+            
+            // Display suggestions
+            displaySuggestions(filteredUsers, searchTerm);
+        }
+        
+        // Display search suggestions with selectable items
+        function displaySuggestions(filteredUsers, searchTerm) {
+            const suggestionsContainer = document.getElementById('searchSuggestions');
+            suggestionsContainer.innerHTML = '';
+            
+            if (filteredUsers.length === 0) {
+                suggestionsContainer.classList.remove('active');
+                return;
+            }
+            
+            // Show at most 5 suggestions
+            const maxSuggestions = Math.min(5, filteredUsers.length);
+            
+            for (let i = 0; i < maxSuggestions; i++) {
+                const user = filteredUsers[i];
+                const suggestionItem = document.createElement('div');
+                suggestionItem.className = 'suggestion-item';
+                if (selectedUsers.has(user.username)) {
+                    suggestionItem.classList.add('selected');
+                }
+                
+                const userEmail = document.createElement('div');
+                userEmail.className = 'user-email';
+                
+                // Highlight the matching part of the text
+                const username = user.username;
+                const lowerUsername = username.toLowerCase();
+                const index = lowerUsername.indexOf(searchTerm.toLowerCase());
+                
+                if (index !== -1) {
+                    const before = username.substring(0, index);
+                    const match = username.substring(index, index + searchTerm.length);
+                    const after = username.substring(index + searchTerm.length);
+                    
+                    userEmail.innerHTML = `${before}<span class="highlight">${match}</span>${after}`;
+                } else {
+                    userEmail.textContent = username;
+                }
+                
+                const userCount = document.createElement('div');
+                userCount.className = 'user-count';
+                userCount.textContent = user.count;
+                
+                suggestionItem.appendChild(userEmail);
+                suggestionItem.appendChild(userCount);
+                
+                // Add click event to suggestion
+                suggestionItem.addEventListener('click', function() {
+                    // Toggle selection instead of just searching
+                    toggleUserSelection(user);
+                    
+                    // Update search input but don't filter the list
+                    document.getElementById('userSearchInput').value = '';
+                    
+                    // Hide suggestions
+                    suggestionsContainer.classList.remove('active');
+                });
+                
+                suggestionsContainer.appendChild(suggestionItem);
+            }
+            
+            // Show the suggestions container
+            suggestionsContainer.classList.add('active');
+        }
+        
+        document.getElementById('loadingIndicator').style.display = 'block';
+        // Fetch initial data
+        fetch('/api/chat_data?period=today')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Initial data loaded:', data);
+                
+                // Store original data
+                originalDashboardData = JSON.parse(JSON.stringify(data));
+                
+            // Update statistics
+            document.getElementById('totalMessages').textContent = data.total_messages;
+            document.getElementById('ticketsCreated').textContent = data.tickets_created;
+            
+                // Create charts
+                createChart(data, 'today');
+                
+                // Ensure dropdown text shows 'Today'
+                dropdownBtn.innerHTML = 'Today <span class="dropdown-arrow">▼</span>';
+                
+                // Check if data has user percentages
+                if (data.user_percentages && data.user_percentages.length > 0) {
+                    console.log('Creating donut chart with initial data');
+                    createDonutChart(data.user_percentages);
+                    
+                    // Create the bar chart with today's data
+                    console.log('Creating bar chart with initial data');
+                    createUserBarChart(data.user_percentages);
+                    
+                    // Update users list with today's data
+                    updateUsersList(data.user_percentages);
+            } else {
+                    console.warn('No user_percentages in initial data');
+                    document.querySelector('.donut-container').innerHTML = '<div class="no-data-message-small">No user data available</div>';
+                    document.getElementById('usersList').innerHTML = '<div class="no-users-message">No users found for today</div>';
+                    document.querySelector('.bar-chart-wrapper').innerHTML = '<h2>User Message Distribution</h2><div class="no-data-message">No user data available</div>';
+                }
+
+     // Hide loading indicator after data is loaded and processed
+     document.getElementById('loadingIndicator').style.display = 'none';
+
+
+            })
+            .catch(error => {
+                console.error('Error fetching initial data:', error);
+                document.querySelector('.donut-container').innerHTML = '<div class="no-data-message-small">Error loading user data</div>';
+                document.getElementById('usersList').innerHTML = '<div class="no-users-message">Error loading user data</div>';
+            });
+
+        // Initialize the event listeners when the document is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize both search and user selection functionality
+            initializeAll();
+            
+            // Generate initial calendar for the current month
+            generateCalendar(currentMonth, currentYear);
+        });
+        
+        // Function to create the chart
+        function createChart(data, period) {
+            const ctx = document.getElementById('chatLineGraph').getContext('2d');
+            
+            // Extract data and ensure it's in the right format
+            const chartLabels = Array.isArray(data.labels) ? data.labels : [];
+            const chartValues = Array.isArray(data.values) ? data.values : [];
+            
+            // Format the labels based on period
+            let formattedLabels = chartLabels;
+            if (period === 'today' || period === 'yesterday') {
+                // For today/yesterday, convert YYYY-MM-DD to HH:MM format if needed
+                formattedLabels = chartLabels.map(label => {
+                    if (label && label.includes && label.includes('-')) {
+                        return label.split(' ')[1] || label; // Extract time portion if available
+                    }
+                    return label;
+                });
+            }
+            
+            // Determine max Y-axis value with dynamic step size
+            const maxValue = Math.max(...chartValues, 1);
+            
+            // Calculate a reasonable step size based on the max value
+            let stepSize = 20;
+            if (maxValue > 100) {
+                stepSize = 20;
+            } else if (maxValue > 50) {
+                stepSize = 10;
+            } else if (maxValue > 20) {
+                stepSize = 5;
+            } else if (maxValue > 10) {
+                stepSize = 2;
+            } else {
+                stepSize = 1;
+            }
+            
+            // Set the max Y value to exactly match the highest point in the data
+            // This ensures the graph fills the available space with minimal padding
+            const yAxisMax = Math.ceil(maxValue / stepSize) * stepSize;
+            
+            // Create a custom legend for better styling
+            const legendContainer = document.createElement('div');
+            legendContainer.className = 'chart-legend';
+            
+            const legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            
+            const legendColor = document.createElement('div');
+            legendColor.className = 'legend-color';
+            legendColor.style.backgroundColor = '#00a8ff';
+            
+            const legendText = document.createElement('span');
+            legendText.textContent = 'Chats';
+            
+            legendItem.appendChild(legendColor);
+            legendItem.appendChild(legendText);
+            legendContainer.appendChild(legendItem);
+            
+            // Update title and add legend
+            const lineGraphWrapper = document.querySelector('.line-graph-wrapper');
+            const titleElement = lineGraphWrapper.querySelector('h2');
+            if (titleElement) {
+                titleElement.textContent = "Chat History";
+                titleElement.style.color = "#00a8ff";
+                titleElement.style.textAlign = "center";
+                titleElement.style.fontWeight = "bold";
+                titleElement.style.marginBottom = "5px";
+            }
+            
+            // Add legend after the title
+            if (!lineGraphWrapper.querySelector('.chart-legend')) {
+                lineGraphWrapper.insertBefore(legendContainer, document.getElementById('chatLineGraph'));
+            }
+            
+            window.chatLineGraph = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: formattedLabels,
+                    datasets: [{
+                        label: 'Chats',
+                        data: chartValues,
+                        borderColor: '#00a8ff',
+                        backgroundColor: 'rgba(0, 168, 255, 0.2)', // Blue shade instead of pink
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#00a8ff', // Filled circles instead of hollow
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 8,
+                        pointHoverBackgroundColor: '#007bff',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    layout: {
+                        padding: {
+                            top: 5,
+                            right: 16,
+                            bottom: 30, // Increased bottom padding for X-axis labels
+                            left: 16
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: stepSize,
+                                display: true,
+                                font: {
+                                    family: "'Poppins', sans-serif",
+                                    size: 12
+                                },
+                                color: '#555',
+                                padding: 10,
+                                callback: function(value) {
+                                    return value;
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(200, 200, 200, 0.3)',
+                                lineWidth: 1,
+                                drawTicks: false,
+                                drawBorder: false,
+                                drawOnChartArea: true
+                            },
+                            max: yAxisMax,
+                            border: {
+                                display: false // Hide Y-axis line
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: true,
+                                color: 'rgba(200, 200, 200, 0.3)',
+                                lineWidth: 1,
+                                drawTicks: false,
+                                drawBorder: false,
+                                drawOnChartArea: true
+                            },
+                            ticks: {
+                                display: true,
+                                font: {
+                                    family: "'Poppins', sans-serif",
+                                    size: 12
+                                },
+                                color: '#555',
+                                padding: 10,
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            border: {
+                                display: false // Hide X-axis line
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false, // Hide default legend as we're using custom
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            titleFont: {
+                                family: "'Poppins', sans-serif",
+                                size: 14
+                            },
+                            bodyFont: {
+                                family: "'Poppins', sans-serif",
+                                size: 14
+                            },
+                            padding: 12,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label || '';
+                                },
+                                label: function(context) {
+                                    return 'Messages: ' + context.raw;
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        line: {
+                            borderJoinStyle: 'round',
+                            borderCapStyle: 'round',
+                            cubicInterpolationMode: 'monotone'
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            });
+        }
+        
+        // Update the updateDashboard function to include the bar chart
+        function updateDashboard(data, period) {
+            console.log('Updating dashboard with data for period:', period);
+            
+            // Ensure data has consistent structure
+            const dashboardData = {
+                labels: data.labels || (data.linechart_data ? data.linechart_data.labels : []),
+                values: data.values || (data.linechart_data ? data.linechart_data.values : []),
+                total_messages: data.total_messages || 0,
+                tickets_created: data.tickets_created || 0,
+                user_percentages: data.user_percentages || data.user_data || []
+            };
+            
+            // Store current user data globally for search functionality
+            window.currentUserData = dashboardData.user_percentages;
+            
+            // Update chart
+            updateChart({
+                labels: dashboardData.labels,
+                values: dashboardData.values
+            }, period);
+            
+                // Update statistics
+            document.getElementById('totalMessages').textContent = dashboardData.total_messages;
+            document.getElementById('ticketsCreated').textContent = dashboardData.tickets_created;
+            
+            // Update donut chart and user data
+            if (dashboardData.user_percentages && dashboardData.user_percentages.length > 0) {
+                createDonutChart(dashboardData.user_percentages);
+                createUserBarChart(dashboardData.user_percentages);
+                updateUsersList(dashboardData.user_percentages);
+            } else {
+                // Show no data messages
+                document.querySelector('.donut-container').innerHTML = '<div class="no-data-message-small">No user data available</div>';
+                document.getElementById('usersList').innerHTML = '<div class="no-users-message">No users found for this period</div>';
+                
+                // Show no data message for bar chart
+                document.querySelector('.bar-chart-wrapper').innerHTML = '<h2 style="color: #00a8ff; text-align: center; font-weight: bold; margin-bottom: 5px;">User Chats</h2><div class="no-data-message">No user data available</div>';
+            }
+            
+            // Initialize search functionality
+            initializeSearch();
+        }
+
+        // Function to update the chart with new data
+        function updateChart(data, period) {
+            // Ensure we have arrays for labels and values
+            const chartLabels = Array.isArray(data.labels) ? data.labels : [];
+            const chartValues = Array.isArray(data.values) ? data.values : [];
+
+            // Update line chart
+            if (window.chatLineGraph) {
+                window.chatLineGraph.data.labels = chartLabels;
+                window.chatLineGraph.data.datasets[0].data = chartValues;
+                
+                // Update the step size dynamically
+                const maxValue = Math.max(...chartValues, 1);
+                let stepSize = 20;
+                if (maxValue > 100) {
+                    stepSize = 20;
+                } else if (maxValue > 50) {
+                    stepSize = 10;
+                } else if (maxValue > 20) {
+                    stepSize = 5;
+                } else if (maxValue > 10) {
+                    stepSize = 2;
+                } else {
+                    stepSize = 1;
+                }
+                
+                // Set the max Y value to exactly match the highest point in the data
+                const yAxisMax = Math.ceil(maxValue / stepSize) * stepSize;
+                window.chatLineGraph.options.scales.y.ticks.stepSize = stepSize;
+                window.chatLineGraph.options.scales.y.ticks.display = true;
+                window.chatLineGraph.options.scales.y.max = yAxisMax;
+                
+                // Update chart styling to match the desired appearance
+                window.chatLineGraph.data.datasets[0].borderColor = '#00a8ff';
+                window.chatLineGraph.data.datasets[0].backgroundColor = 'rgba(0, 168, 255, 0.2)';
+                window.chatLineGraph.data.datasets[0].pointBackgroundColor = '#00a8ff';
+                window.chatLineGraph.data.datasets[0].pointBorderColor = '#ffffff';
+                
+                // Ensure grid lines are visible with improved styling
+                window.chatLineGraph.options.scales.y.grid.display = true;
+                window.chatLineGraph.options.scales.y.grid.color = 'rgba(200, 200, 200, 0.3)';
+                window.chatLineGraph.options.scales.y.grid.drawTicks = false;
+                window.chatLineGraph.options.scales.y.grid.drawBorder = false;
+                window.chatLineGraph.options.scales.y.grid.drawOnChartArea = true;
+                
+                window.chatLineGraph.options.scales.x.grid.display = true;
+                window.chatLineGraph.options.scales.x.grid.color = 'rgba(200, 200, 200, 0.3)';
+                window.chatLineGraph.options.scales.x.grid.drawTicks = false;
+                window.chatLineGraph.options.scales.x.grid.drawBorder = false;
+                window.chatLineGraph.options.scales.x.grid.drawOnChartArea = true;
+                
+                // Hide default legend
+                window.chatLineGraph.options.plugins.legend.display = false;
+                
+                // Hide axes borders
+                window.chatLineGraph.options.scales.y.border.display = false;
+                window.chatLineGraph.options.scales.x.border.display = false;
+                
+                // Update title
+                const lineGraphWrapper = document.querySelector('.line-graph-wrapper');
+                const titleElement = lineGraphWrapper.querySelector('h2');
+                if (titleElement) {
+                    titleElement.textContent = "Chat History";
+                    titleElement.style.color = "#00a8ff";
+                    titleElement.style.textAlign = "center";
+                    titleElement.style.fontWeight = "bold";
+                    titleElement.style.marginBottom = "5px";
+                }
+                
+                // Ensure the legend is present
+                if (!lineGraphWrapper.querySelector('.chart-legend')) {
+                    const legendContainer = document.createElement('div');
+                    legendContainer.className = 'chart-legend';
+                    
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'legend-item';
+                    
+                    const legendColor = document.createElement('div');
+                    legendColor.className = 'legend-color';
+                    legendColor.style.backgroundColor = '#00a8ff';
+                    
+                    const legendText = document.createElement('span');
+                    legendText.textContent = 'Chats';
+                    
+                    legendItem.appendChild(legendColor);
+                    legendItem.appendChild(legendText);
+                    legendContainer.appendChild(legendItem);
+                    
+                    lineGraphWrapper.insertBefore(legendContainer, document.getElementById('chatLineGraph'));
+                }
+                
+                window.chatLineGraph.update();
+            } else {
+                createChart(data, period);
+            }
+            
+            // Display a message if no data is available
+            const lineGraphWrapper = document.querySelector('.line-graph-wrapper');
+            const noDataMessage = document.getElementById('noDataMessage');
+            
+            if (chartLabels.length === 0 || chartValues.length === 0) {
+                // Create a no-data message if it doesn't exist
+                if (!noDataMessage) {
+                    const messageElement = document.createElement('div');
+                    messageElement.id = 'noDataMessage';
+                    messageElement.className = 'no-data-message';
+                    messageElement.textContent = 'No data available for the selected time period';
+                    
+                    // Insert into the line graph wrapper instead of the chart container
+                    lineGraphWrapper.appendChild(messageElement);
+                }
+                
+                // Hide the chart
+                document.getElementById('chatLineGraph').style.display = 'none';
+            } else {
+                // Remove the no-data message if it exists
+                if (document.getElementById('noDataMessage')) {
+                    document.getElementById('noDataMessage').remove();
+                }
+                
+                // Show the chart
+                document.getElementById('chatLineGraph').style.display = 'block';
+            }
+        }
+
+        // User filtering functionality
+        const selectedUsersContainer = document.getElementById('selectedUsersContainer');
+        const selectedUsersList = document.getElementById('selectedUsersList');
+        const applyUserFilterBtn = document.getElementById('applyFilterBtn');
+        const clearUserFilterBtn = document.getElementById('clearFilterBtn');
+
+        // Function to initialize user selection
+        function initializeUserSelection() {
+            const userItems = document.querySelectorAll('.user-item');
+            
+            userItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const email = this.getAttribute('data-email');
+                    const username = email.split('@')[0];
+                    
+                    if (this.classList.contains('selected')) {
+                        // Remove from selection
+                        this.classList.remove('selected');
+                        removeUserFromSelection(email);
+                    } else {
+                        // Add to selection
+                        this.classList.add('selected');
+                        addUserToSelection(email, username);
+                    }
+                    
+                    // Show or hide the selected users container
+                    updateSelectedUsersContainer();
+                });
+            });
+            
+            // Apply filter button event
+            applyUserFilterBtn.addEventListener('click', applyUserFilter);
+            
+            // Clear filter button event
+            clearUserFilterBtn.addEventListener('click', clearUserFilter);
+        }
+
+        // Function to add user to selection
+        function addUserToSelection(email, username) {
+            // Add email to the Set
+            selectedUsers.add(email);
+            renderSelectedUsers();
+        }
+
+        // Function to remove user from selection
+        function removeUserFromSelection(email) {
+            // Remove email from the Set
+            selectedUsers.delete(email);
+            renderSelectedUsers();
+            
+            // Also remove selection from the list item
+            const userItem = document.querySelector(`.user-item[data-email="${email}"]`);
+            if (userItem) {
+                userItem.classList.remove('selected');
+            }
+        }
+
+        // Function to render selected users
+        function renderSelectedUsers() {
+            selectedUsersList.innerHTML = '';
+            
+            // Iterate through the Set of emails
+            selectedUsers.forEach(email => {
+                const username = email.split('@')[0];
+                const userTag = document.createElement('div');
+                userTag.className = 'selected-user-tag';
+                userTag.innerHTML = `
+                    <span>${username}</span>
+                    <span class="remove-tag" data-email="${email}">&times;</span>
+                `;
+                selectedUsersList.appendChild(userTag);
+            });
+            
+            // Add event listeners to remove tags
+            document.querySelectorAll('.remove-tag').forEach(tag => {
+                tag.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const email = this.getAttribute('data-email');
+                    removeUserFromSelection(email);
+                    updateSelectedUsersContainer();
+                });
+            });
+        }
+
+        // Function to update selected users container visibility
+        function updateSelectedUsersContainer() {
+            if (selectedUsers.size > 0) {
+                selectedUsersContainer.style.display = 'flex';
+            } else {
+                selectedUsersContainer.style.display = 'none';
+            }
+        }
+
+        // Function to clear user filter
+        function clearUserFilter() {
+            // Clear selected users
+            selectedUsers.clear();
+            
+            // Reset the selected users list display
+            const selectedUsersList = document.getElementById('selectedUsersList');
+            selectedUsersList.innerHTML = '';
+            
+            // Hide the container
+            const selectedUsersContainer = document.getElementById('selectedUsersContainer');
+            selectedUsersContainer.style.display = 'none';
+            
+            // Remove selection from all user items
+            document.querySelectorAll('.user-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Remove filter indicators
+            document.querySelectorAll('.filter-active-indicator').forEach(el => el.remove());
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'flex';
+            
+            // Get current period from dropdown
+            const currentPeriod = document.querySelector('.dropdown-btn').textContent.trim().toLowerCase();
+            let period = 'today';
+            
+            // Match the period 
+            if (currentPeriod.includes('yesterday')) {
+                period = 'yesterday';
+            } else if (currentPeriod.includes('this week')) {
+                period = 'this-week';
+            } else if (currentPeriod.includes('last week')) {
+                period = 'last-week';
+            } else if (currentPeriod.includes('this month')) {
+                period = 'this-month';
+            } else if (currentPeriod.includes('last month')) {
+                period = 'last-month';
+            } else if (currentPeriod.includes('-')) { // Detect date range format like "Mar 15 - Mar 20"
+                period = 'custom';
+            }
+            
+            console.log(`Clearing user filter and refreshing data for period: ${period}`);
+            
+            // If custom period is active, handle the custom date range
+            if (period === 'custom') {
+                try {
+                    // Try to extract dates from the dropdown text
+                    const dateText = currentPeriod;
+                    const dates = dateText.split('-').map(d => d.trim());
+                    
+                    if (dates.length === 2) {
+                        // Convert display format dates to ISO format
+                        const today = new Date();
+                        const currentYear = today.getFullYear();
+                        
+                        // Parse the dates (assuming "MMM DD" format)
+                        const startParts = dates[0].split(' ');
+                        const endParts = dates[1].split(' ');
+                        
+                        if (startParts.length >= 2 && endParts.length >= 2) {
+                            const startMonth = getMonthNumber(startParts[0]);
+                            const startDay = parseInt(startParts[1]);
+                            const endMonth = getMonthNumber(endParts[0]);
+                            const endDay = parseInt(endParts[1]);
+                            
+                            if (!isNaN(startMonth) && !isNaN(startDay) && !isNaN(endMonth) && !isNaN(endDay)) {
+                                // Format as YYYY-MM-DD
+                                const startDate = `${currentYear}-${startMonth.toString().padStart(2, '0')}-${startDay.toString().padStart(2, '0')}`;
+                                const endDate = `${currentYear}-${endMonth.toString().padStart(2, '0')}-${endDay.toString().padStart(2, '0')}`;
+                                
+                                console.log(`Extracted date range: ${startDate} to ${endDate}`);
+                                fetchData(startDate, endDate); // No user filter
+                                return;
+                            }
+                        }
+                    }
+                    
+                    // If date extraction failed, fall back to today
+                    console.warn('Could not extract dates from dropdown text, falling back to today');
+                    fetchDataForPeriod('today');
+                } catch (error) {
+                    console.error('Error parsing custom date range:', error);
+                    fetchDataForPeriod('today');
+                }
+            } else {
+                // Otherwise fetch data for the current period without user filter
+                fetchDataForPeriod(period);
+            }
+        }
+
+        // Function to initialize all event listeners
+        function initializeAll() {
+            initializeSearch();
+            initializeUserSelection();
+            // We don't need this function since the dropdown is already handled
+            // initializePeriodDropdown();
+        }
+
+        // Function to apply the date range selection
+        function applyDateRange() {
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            
+            // Validate dates
+            if (!startDateInput.value || !endDateInput.value) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            
+            // Make sure end date is not before start date
+            if (new Date(endDate) < new Date(startDate)) {
+                alert('End date cannot be before start date');
+                return;
+            }
+            
+            console.log(`Applying date range filter: ${startDate} to ${endDate}`);
+            
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'flex';
+            
+            // Build the URL with or without user filter
+            let url = `/data?start=${startDate}&end=${endDate}`;
+            
+            // Add user filter if there are selected users
+            if (selectedUsers.size > 0) {
+                const userEmailsArray = Array.from(selectedUsers);
+                url += `&users=${encodeURIComponent(JSON.stringify(userEmailsArray))}`;
+                console.log(`Including user filter with ${userEmailsArray.length} users`);
+            }
+            
+            console.log(`Fetching data from URL: ${url}`);
+            
+            // Fetch data for this date range
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network response was not ok: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Custom date data received:', data);
+                    
+                    // Store original data
+                    originalDashboardData = JSON.parse(JSON.stringify(data));
+                    
+                    // Update dashboard with the data
+                    updateDashboard({
+                        linechart_data: data.linechart_data || { labels: [], values: [] },
+                        total_messages: data.total_messages || 0,
+                        active_users: data.active_users || 0,
+                        user_percentages: data.user_data || [],
+                        tickets_created: data.tickets_created || 0,
+                        period: 'custom'
+                    }, 'custom');
+                    
+                    // Update dropdown text to show the date range
+                    const formattedStartDate = formatDisplayDate(startDate);
+                    const formattedEndDate = formatDisplayDate(endDate);
+                    dropdownBtn.innerHTML = `${formattedStartDate} - ${formattedEndDate} <span class="dropdown-arrow">▼</span>`;
+                    
+                    // Close modal
+                    closeModal();
+                    
+                    // Hide loading indicator
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    document.querySelector('.donut-container').innerHTML = '<div class="no-data-message-small">Error loading user data</div>';
+                    document.getElementById('usersList').innerHTML = '<div class="no-users-message">Error loading user data</div>';
+                    document.querySelector('.bar-chart-wrapper').innerHTML = '<h2 style="color: #00a8ff; text-align: center; font-weight: bold; margin-bottom: 5px;">User Chats</h2><div class="no-data-message">Error loading data</div>';
+                    
+                    // Close modal anyway
+                    closeModal();
+                    
+                    // Show error message
+                    alert(`Error loading data: ${error.message}`);
+                });
+        }
+
+        // Make sure the date pickers and modal functions are properly set up
+        function initializeDatePickerModal() {
+            const modal = document.getElementById('datePickerModal');
+            const openModalBtn = document.getElementById('customDateOption');
+            const applyBtn = document.getElementById('applyDateRange');
+            const cancelBtn = document.getElementById('cancelDateRange');
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            
+            // Open modal when clicking custom date option
+            openModalBtn.addEventListener('click', function() {
+                // Set default dates to today if empty
+                if (!startDateInput.value) {
+                    startDateInput.value = new Date().toISOString().split('T')[0];
+                }
+                if (!endDateInput.value) {
+                    endDateInput.value = new Date().toISOString().split('T')[0];
+                }
+                modal.style.display = 'block';
+                dropdown.classList.remove('active');
+            });
+            
+            // Apply date range
+            applyBtn.addEventListener('click', applyDateRange);
+            
+            // Cancel date selection
+            cancelBtn.addEventListener('click', closeModal);
+            
+            // Close modal function
+            window.closeModal = function() {
+                modal.style.display = 'none';
+            };
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        // Function to process API data and update dashboard
+        function processData(data) {
+            console.log('Processing data:', data);
+            
+            // Store original data for reference
+            originalDashboardData = JSON.parse(JSON.stringify(data));
+            
+            // Handle both direct API response and /data endpoint response formats
+            const dashboardData = {
+                linechart_data: {
+                    // Check if data has linechart_data structure or direct labels/values
+                    labels: data.linechart_data ? data.linechart_data.labels : (data.labels || []),
+                    values: data.linechart_data ? data.linechart_data.values : (data.values || [])
+                },
+                total_messages: data.total_messages || 0,
+                active_users: data.active_users || (data.user_percentages ? data.user_percentages.length : 0),
+                // Handle both user_percentages and user_data field names
+                user_percentages: data.user_percentages || data.user_data || [],
+                tickets_created: data.tickets_created || 0
+            };
+            
+            console.log('Processed dashboard data:', dashboardData);
+            
+            // Update dashboard with the processed data
+            updateDashboard(dashboardData, selectedPeriod);
+        }
+        
+        // Function to display an error message
+        function displayError(message) {
+            console.error(message);
+            document.querySelector('.donut-container').innerHTML = 
+                '<div class="no-data-message-small">Error loading user data</div>';
+            document.getElementById('usersList').innerHTML = 
+                '<div class="no-users-message">Error loading user data</div>';
+            document.querySelector('.bar-chart-wrapper').innerHTML = 
+                '<h2 style="color: #00a8ff; text-align: center; font-weight: bold; margin-bottom: 5px;">User Chats</h2>' +
+                `<div class="no-data-message">${message}</div>`;
+            
+            // Optionally show an alert for critical errors
+            // alert(message);
+        }
+        
+        // Helper functions for loading indicators
+        function showLoadingIndicator() {
+            document.getElementById('loadingIndicator').style.display = 'flex';
+        }
+        
+        function hideLoadingIndicator() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        // Helper function to format date for display in a more user-friendly format
+        function formatDisplayDate(date) {
+            if (!date) return '';
+            
+            if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                // Already in YYYY-MM-DD format, convert to Date object
+                date = new Date(date);
+            }
+            
+            if (!(date instanceof Date) || isNaN(date)) {
+                console.error(`Invalid date object for display: ${date}`);
+                return '';
+            }
+            
+            // Format as MMM DD, YYYY (e.g., Jan 15, 2023)
+            const options = { month: 'short', day: 'numeric', year: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+
+
+// ==================== MOBILE HAMBURGER MENU ==================== 
+  const hamburgerMenu = document.getElementById('hamburgerMenu');
+  const mobileMenu = document.getElementById('mobileMenu');
+  const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+  const mobileCloseBtn = document.getElementById('mobileCloseBtn');
+
+  // Open mobile menu
+  if (hamburgerMenu) {
+    hamburgerMenu.addEventListener('click', () => {
+      mobileMenu.classList.add('active');
+      mobileMenuOverlay.classList.add('active');
+      hamburgerMenu.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    });
+  }
+
+  // Close mobile menu - Close button
+  if (mobileCloseBtn) {
+    mobileCloseBtn.addEventListener('click', () => {
+      mobileMenu.classList.remove('active');
+      mobileMenuOverlay.classList.remove('active');
+      hamburgerMenu.classList.remove('active');
+      document.body.style.overflow = 'auto';
+    });
+  }
+
+  // Close mobile menu - Overlay click
+  if (mobileMenuOverlay) {
+    mobileMenuOverlay.addEventListener('click', () => {
+      mobileMenu.classList.remove('active');
+      mobileMenuOverlay.classList.remove('active');
+      hamburgerMenu.classList.remove('active');
+      document.body.style.overflow = 'auto';
+    });
+  }
+
+  // Close menu when clicking navigation links
+  document.querySelectorAll('.mobile-nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      mobileMenu.classList.remove('active');
+      mobileMenuOverlay.classList.remove('active');
+      hamburgerMenu.classList.remove('active');
+      document.body.style.overflow = 'auto';
+    });
+  });
+
+  // Mobile Time Dropdown Toggle
+  const mobileTimeDropdown = document.getElementById('mobileTimeDropdown');
+  if (mobileTimeDropdown) {
+    const mobileDropdownBtn = mobileTimeDropdown.querySelector('.mobile-dropdown-btn');
+    
+    mobileDropdownBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mobileTimeDropdown.classList.toggle('active');
+    });
+
+    // Handle mobile dropdown selection
+    const mobileDropdownItems = mobileTimeDropdown.querySelectorAll('.mobile-dropdown-content a');
+    mobileDropdownItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const value = item.getAttribute('data-value');
+        mobileDropdownBtn.innerHTML = `${item.textContent} <span class="dropdown-arrow">▼</span>`;
+        mobileTimeDropdown.classList.remove('active');
+        
+        // Sync with desktop dropdown if needed
+        const desktopDropdownBtn = document.querySelector('#timeDropdown .dropdown-btn');
+        if (desktopDropdownBtn) {
+          desktopDropdownBtn.innerHTML = `${item.textContent} <span class="dropdown-arrow">▼</span>`;
+        }
+        
+        // Add your time filter logic here
+        console.log('Selected time filter:', value);
+      });
+    });
+  }
+
+  // Close dropdowns when clicking outside
+  document.addEventListener('click', (e) => {
+    if (mobileTimeDropdown && !mobileTimeDropdown.contains(e.target)) {
+      mobileTimeDropdown.classList.remove('active');
+    }
+  });
+
+
+
+    </script>
+</body>
+</html> 

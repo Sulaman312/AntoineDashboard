@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Files - PetCare</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/upload.css') }}" />
+
+
+</head>
+
+
+<body>
+  <header>
+    <div class="logo">
+      <span class="brand">petcare</span>
+      <span class="brand-subtitle">PET SERVICES</span>
+    </div>
+
+    <!-- Navigation Tabs (Desktop) -->
+    <nav class="header-nav">
+      <a href="{{ url_for('dashboard') }}" class="nav-tab">Dashboard</a>
+      <a href="{{ url_for('upload_file') }}" class="nav-tab">Upload File</a>
+    </nav>
+
+    <div class="header-controls">
+      <form action="{{ url_for('logout') }}" method="get" class="logout-form">
+        <button type="submit" class="logout-btn">
+          Logout
+        </button>
+      </form>
+
+      <!-- Hamburger Icon (Mobile Only) -->
+      <button class="hamburger-menu" id="hamburgerMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+
+  <!-- Loading Indicator (reused from index.html) -->
+  <div id="loadingIndicator">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- Mobile Menu (Slides from Right) -->
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="mobile-close-btn" id="mobileCloseBtn">✕</button>
+
+    <div class="mobile-menu-content">
+      <h3 class="mobile-menu-title">Menu</h3>
+
+      <nav class="mobile-nav">
+        <a href="{{ url_for('dashboard') }}" class="mobile-nav-link">
+          
+          Dashboard
+        </a>
+        <a href="{{ url_for('upload_file') }}" class="mobile-nav-link">
+         
+          Upload File
+        </a>
+      </nav>
+
+      <div class="mobile-logout">
+        <form action="{{ url_for('logout') }}" method="get">
+          <button type="submit" class="mobile-logout-btn">
+            <span class="mobile-nav-icon">🚪</span>
+            Logout
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIXED -->
+<div class="sidebar-menu" id="sidebarMenu">
+  <button class="close-btn-outside" id="closeSidebar">✕</button>
+  
+  <!-- NEW: Search and Sort Controls -->
+  <div class="sidebar-header">
+    
+    <!-- Search Bar -->
+    <div class="sidebar-search">
+      <input 
+        type="text" 
+        id="sidebarSearchInput" 
+        class="sidebar-search-input" 
+        placeholder=" Search files..."
+      />
+    </div>
+    
+    <!-- Sort Dropdown -->
+    <div class="sidebar-sort">
+      <select id="sidebarSortSelect" class="sidebar-sort-select">
+        <option value="name-asc">Name (A-Z)</option>
+        <option value="name-desc">Name (Z-A)</option>
+        <option value="date-desc" selected>Latest Modified</option>
+        <option value="date-asc">Oldest Modified</option>
+      </select>
+    </div>
+  </div>
+  
+  <!-- File Content Area -->
+  <div class="sidebar-content" id="sidebarContent">
+    <p class="sidebar-loading">
+      Loading files...
+    </p>
+  </div>
+</div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div>
+    <!-- Add this menu icon -->
+    <button class="menu-toggle-btn" id="menuToggle">☰</button>
+  </div>
+
+  <div class="container">
+    <div class="main-layout">
+      <div class="left-section">
+        <div class="section-header">
+          <div class="uploaded-files-header">
+          
+            <span class="header-text">Upload File</span>
+          </div>
+        </div>
+
+        <div class="upload-card">
+          <div class="upload-area" id="uploadArea">
+           <div class="upload-content_container">
+
+           
+            <div class="empty-state-container">
+             <div class="upload-icon">☁️</div>
+              <p class="empty-message">Drage your file here</p>
+              <p class="empty-submessage">or click to browse from your device</p>
+              <button class="browse-btn" type="button">
+            
+                Browse Files
+              </button>
+            </div>
+            <input type="file" id="fileInput" class="file-input" multiple
+              accept=".pdf,.doc,.docx,.txt,.xlsx,.csv,.ppt,.pptx,.jpg,.jpeg,.png,.gif" />
+          </div>
+         
+            </div>
+
+
+
+         
+
+
+
+
+        </div>
+<div class="upload-action-container">
+
+ <button class="action-btn" id="uploadFileBtn">
+                                 Upload File
+                              </button>
+        </div>
+     
+        <div class="file-list" id="fileList">
+          <div class="file-list-title"> Selected Files</div>
+          <div id="fileItems"></div>
+        </div>
+
+   <!-- File Selection Dropdown
+        <div class="file-selection-dropdown" id="fileSelectionDropdown">
+          <div class="dropdown-header">
+            <span class="dropdown-icon"></span>
+            <span class="dropdown-title">Select Files</span>
+            <span class="dropdown-arrow" id="dropdownArrow">▼</span>
+          </div>
+          <div class="dropdown-content" id="dropdownContent">
+            <div class="dropdown-loading">Loading files...</div>
+          </div>
+        </div> -->
+        <!-- Left Side: Upload Area -->
+
+
+        <!-- End Left Section -->
+      </div>
+      <!-- Right Side: Quick Actions & Statistics -->
+      <div class="right-section">
+        <!-- Quick Actions Box -->
+
+
+        <!-- Statistics Box -->
+        <div class="statistics-box">
+          <div class="stats-header">
+            Statistics
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="fileCount">0</div>
+              <div class="stat-label">
+                <span class="stat-icon"></span>
+                File Count
+              </div>
+            </div>
+
+            <div class="stat-card stat-pending">
+              <div class="stat-value" id="totalSize">0 KB</div>
+              <div class="stat-label">
+                <span class="stat-icon"></span>
+                Total Size
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="quick-actions-box">
+ 
+  <h3 class="supported-files-title">Supported File Types</h3>
+  
+  <div class="file-types-content">
+    <p class="file-types-description">
+      <span class="file-format">PDF</span> 
+      <span class="file-format">DOC</span> 
+      <span class="file-format">DOCX</span> 
+      <span class="file-format">TXT</span> 
+      <span class="file-format">XLSX</span> 
+      <span class="file-format">CSV</span> 
+      <span class="file-format">PPT</span> 
+      <span class="file-format">PPTX</span> 
+      <span class="file-format">Images</span> 
+      <span class="image-formats">(JPG, PNG, GIF)</span>
+    </p>
+    
+    <div class="file-size-divider"></div>
+    
+    <p class="max-size-info">
+      <span class="size-icon">⚠️</span>
+      Max size: <strong>10MB</strong> per file
+    </p>
+          </div>
+        </div>
+      </div>
+      <!-- End Right Section -->
+
+
+      <!-- End main-layout -->
+    </div>
+    <script>
+      const uploadArea = document.getElementById("uploadArea");
+      const fileInput = document.getElementById("fileInput");
+      const fileList = document.getElementById("fileList");
+      const fileItems = document.getElementById("fileItems");
+      //const uploadBtn = document.getElementById("uploadBtn");
+      const uploadBtn = document.getElementById("uploadFileBtn");
+      const fileCount = document.getElementById("fileCount");
+      const totalSize = document.getElementById("totalSize");
+
+      let selectedFiles = [];
+// NEW: Variables for sidebar filtering and sorting
+    let allFilesData = []; // Store all files for filtering/sorting
+    let currentSortOrder = 'date-desc'; // Default sort order
+      // ==================== TOAST NOTIFICATION SYSTEM ====================
+      function showToast(message, type = "info", duration = 3000) {
+        // Remove existing toasts
+        const existingToasts = document.querySelectorAll(".custom-toast");
+        existingToasts.forEach((toast) => toast.remove());
+
+        // Create toast element
+        const toast = document.createElement("div");
+        toast.className = `custom-toast custom-toast-${type}`;
+
+        // Set icon based on type
+        let icon = "";
+        switch (type) {
+          case "success":
+            icon = "✅";
+            break;
+          case "error":
+            icon = "❌";
+            break;
+          case "warning":
+            icon = "⚠️";
+            break;
+          case "info":
+            icon = "ℹ️";
+            break;
+          default:
+            icon = "📝";
+        }
+
+        toast.innerHTML = `
+      <span class="toast-icon">${icon}</span>
+      <span class="toast-message">${message}</span>
+    `;
+
+        document.body.appendChild(toast);
+
+        // Trigger animation
+        setTimeout(() => toast.classList.add("show"), 10);
+
+        // Auto remove after duration
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+      }
+
+      // Add toast styles dynamically
+      const toastStyles = document.createElement("style");
+      toastStyles.textContent = `
+    .custom-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 10000;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+      max-width: 400px;
+      border-left: 4px solid #ccc;
+    }
+    
+    .custom-toast.show {
+      transform: translateX(0);
+    }
+    
+    .custom-toast-success {
+      border-left-color: #4caf50;
+      background: #f1f8f4;
+    }
+    
+    .custom-toast-error {
+      border-left-color: #f44336;
+      background: #fef1f0;
+    }
+    
+    .custom-toast-warning {
+      border-left-color: #ff9800;
+      background: #fff8f0;
+    }
+    
+    .custom-toast-info {
+      border-left-color: #2196f3;
+      background: #f0f7ff;
+    }
+    
+    .toast-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    
+    .toast-message {
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+    }
+  `;
+      document.head.appendChild(toastStyles);
+
+      // ==================== FILE SELECTION HANDLERS ====================
+
+      // FIXED: Click to upload - Only trigger when clicking empty area
+      uploadArea.addEventListener("click", (e) => {
+        // Don't trigger if clicking on interactive elements
+        if (
+          e.target.closest(".file-item") ||
+          e.target.closest(".remove-btn") ||
+          e.target.closest(".browse-btn") ||
+          e.target.closest(".file-list") ||
+          e.target.closest(".upload-text") ||
+          e.target.tagName === "BUTTON" ||
+          e.target.tagName === "INPUT"
+        ) {
+          return;
+        }
+        fileInput.click();
+      });
+
+      // Prevent the browse button from triggering parent click
+      const browseBtnElement = document.querySelector(".browse-btn");
+      if (browseBtnElement) {
+        browseBtnElement.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          fileInput.click();
+        });
+      }
+
+      // Drag and drop events
+      uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadArea.classList.add("dragover");
+      });
+
+      uploadArea.addEventListener("dragleave", () => {
+        uploadArea.classList.remove("dragover");
+      });
+
+      uploadArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove("dragover");
+        const files = Array.from(e.dataTransfer.files);
+        handleFiles(files);
+      });
+
+      // File input change
+      fileInput.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        handleFiles(files);
+        // Reset file input to allow selecting the same file again if needed
+        e.target.value = "";
+      });
+      function handleFiles(files) {
+        // Define allowed file extensions
+        const allowedExtensions = [
+          ".pdf",
+          ".doc",
+          ".docx",
+          ".txt",
+          ".xlsx",
+          ".xls",
+          ".csv",
+          ".ppt",
+          ".pptx",
+          ".jpg",
+          ".jpeg",
+          ".png",
+          ".gif",
+        ];
+
+        // Filter files by allowed extensions
+        const validFiles = files.filter((file) => {
+          const fileName = file.name.toLowerCase();
+          return allowedExtensions.some((ext) => fileName.endsWith(ext));
+        });
+
+        if (validFiles.length === 0) {
+          showToast(
+            "No valid files selected! Please select supported file types.",
+            "warning"
+          );
+          return;
+        }
+
+        let addedCount = 0;
+        let rejectedCount = 0;
+
+        validFiles.forEach((file) => {
+          // Check file size (10MB limit)
+          if (file.size > 10 * 1024 * 1024) {
+            showToast(`File "${file.name}" is too large (max 10MB)`, "warning");
+            rejectedCount++;
+            return;
+          }
+
+          // Check for duplicates
+          if (
+            !selectedFiles.some(
+              (f) => f.name === file.name && f.size === file.size
+            )
+          ) {
+            selectedFiles.push(file);
+            addedCount++;
+          }
+        });
+
+        if (addedCount > 0) {
+          showToast(`${addedCount} file(s) added`, "success", 2000);
+        }
+
+        if (rejectedCount > 0) {
+          showToast(
+            `${rejectedCount} file(s) rejected (too large)`,
+            "warning",
+            2000
+          );
+        }
+
+        displayFiles();
+        updateStats();
+      }
+
+      function displayFiles() {
+        if (selectedFiles.length === 0) {
+          fileList.style.display = "none";
+          const uploadBtn = document.getElementById("uploadFileBtn");
+          if (uploadBtn) {
+          uploadBtn.disabled = true;
+          }
+          return;
+        }
+
+        fileList.style.display = "block";
+        const uploadBtn = document.getElementById("uploadFileBtn");
+        if (uploadBtn) {
+        uploadBtn.disabled = false;
+        }
+        fileItems.innerHTML = "";
+
+        selectedFiles.forEach((file, index) => {
+          const fileItem = document.createElement("div");
+          fileItem.className = "file-item-selected";
+
+          const fileIcon = getFileIcon(file.name);
+          const fileSize = formatFileSize(file.size);
+
+          fileItem.innerHTML = `
+        <div class="file-info">
+          <div class="file-icon-small">${fileIcon}</div>
+          <div class="file-details">
+            <div class="file-name">${file.name}</div>
+            <div class="file-size">${fileSize}</div>
+          </div>
+        </div>
+        <div class="file-actions">
+          <button class="remove-btn" onclick="removeFile(${index}); event.stopPropagation();">✕</button>
+        </div>
+      `;
+
+          fileItems.appendChild(fileItem);
+        });
+      }
+
+      function getFileIcon(filename) {
+        const extension = filename.toLowerCase().split(".").pop();
+
+        const iconMap = {
+          pdf: "📕",
+          doc: "📘",
+          docx: "📘",
+          txt: "📄",
+          xlsx: "📗",
+          xls: "📗",
+          csv: "📊",
+          ppt: "📙",
+          pptx: "📙",
+          jpg: "🖼️",
+          jpeg: "🖼️",
+          png: "🖼️",
+          gif: "🖼️",
+        };
+
+        return iconMap[extension] || "📎";
+      }
+
+      function removeFile(index) {
+        const fileName = selectedFiles[index].name;
+        selectedFiles.splice(index, 1);
+        displayFiles();
+        updateStats();
+        showToast(`${fileName} removed`, "info", 2000);
+      }
+
+      function updateStats() {
+        fileCount.textContent = selectedFiles.length;
+        const total = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+        totalSize.textContent = formatFileSize(total);
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (
+          Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+        );
+      }
+
+      // ==================== UPLOAD HANDLER WITH INGESTION ====================
+      async function uploadFilesToBlobStorage() {
+        if (selectedFiles.length === 0) {
+          showToast("Please select at least one file!", "warning");
+          return;
+        }
+
+        // Disable button during upload
+        const uploadBtn = document.getElementById("uploadFileBtn");
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = " Uploading...";
+        // Show global loader
+        const globalLoader = document.getElementById("loadingIndicator");
+        if (globalLoader) globalLoader.style.display = "flex";
+
+        try {
+          // ========== STEP 1: UPLOAD FILES ==========
+          showToast(
+            `Uploading ${selectedFiles.length} file(s)...`,
+            "info",
+            2000
+          );
+
+          const formData = new FormData();
+          selectedFiles.forEach((file) => {
+            formData.append("files", file);
+          });
+
+          const uploadUrl = `/upload/multiple`;
+
+          console.log(
+            `📤 Step 1: Uploading ${selectedFiles.length} file(s)...`
+          );
+
+          const uploadResponse = await fetch(uploadUrl, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error(
+              `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
+            );
+          }
+
+          const uploadResult = await uploadResponse.json();
+          console.log("✅ Upload response:", uploadResult);
+
+          if (uploadResult.status !== "ok") {
+            throw new Error(uploadResult.message || "Upload failed");
+          }
+
+          // Show upload success
+          const successfulUploads = uploadResult.uploaded_files.filter(
+            (f) => !f.error
+          );
+          const failedUploads = uploadResult.uploaded_files.filter(
+            (f) => f.error
+          );
+
+          if (successfulUploads.length > 0) {
+            showToast(
+              `✅ ${successfulUploads.length} file(s) uploaded successfully!`,
+              "success",
+              3000
+            );
+          }
+
+          if (failedUploads.length > 0) {
+            showToast(
+              `⚠️ ${failedUploads.length} file(s) failed to upload`,
+              "warning",
+              3000
+            );
+          }
+
+          // ========== STEP 2: EXTRACT FILE PATHS ==========
+          const filePaths = [];
+          successfulUploads.forEach((file) => {
+            if (file.blob_path) {
+              filePaths.push(file.blob_path);
+            }
+          });
+
+          console.log(
+            `📁 Extracted ${filePaths.length} file paths for ingestion`
+          );
+
+          // ========== STEP 3: INGEST FILES ==========
+          let ingestionResult = null;
+          if (filePaths.length > 0) {
+            uploadBtn.textContent = "🔄 Processing files...";
+            showToast(
+              `Processing ${filePaths.length} file(s)...`,
+              "info",
+              2000
+            );
+
+            console.log(
+              `📥 Step 2: Starting ingestion for ${filePaths.length} file(s)...`
+            );
+
+            const ingestionResponse = await fetch("/ingest/files", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                file_paths: filePaths,
+              }),
+            });
+
+            if (!ingestionResponse.ok) {
+              console.warn(
+                `⚠️ Ingestion returned status ${ingestionResponse.status}`
+              );
+            }
+
+            ingestionResult = await ingestionResponse.json();
+            console.log("✅ Ingestion response:", ingestionResult);
+
+            // Show ingestion success
+            if (ingestionResult.status === "ok") {
+              showToast(
+                `✅ ${ingestionResult.successful_ingestions || filePaths.length} file(s) processed successfully!`,
+                "success",
+                4000
+              );
+            } else {
+              showToast(`⚠️ Ingestion completed with errors`, "warning", 3000);
+            }
+          }
+
+          // Clear all files after successful processing
+          selectedFiles = [];
+          displayFiles();
+          updateStats();
+          fileInput.value = "";
+
+          // Refresh the dropdown to show new files
+          loadFilesIntoDropdown();
+          // Also refresh the sidebar file list
+          fetchAndDisplayFiles();
+
+          console.log("✅ All operations completed successfully");
+
+          // Final success toast
+          showToast(" All operations completed!", "success", 3000);
+        } catch (error) {
+          console.error("❌ Error:", error);
+          showToast(`Error: ${error.message}`, "error", 5000);
+        } finally {
+          // Re-enable button
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = " Upload File";
+          // Hide global loader
+          const globalLoader = document.getElementById("loadingIndicator");
+          if (globalLoader) globalLoader.style.display = "none";
+        }
+      }
+
+      // Upload button click handler
+      document.getElementById('uploadFileBtn').addEventListener('click', uploadFilesToBlobStorage);
+
+      // sidebar code
+      // ==================== SIDEBAR MENU TOGGLE ====================
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebarMenu = document.getElementById("sidebarMenu");
+      const sidebarOverlay = document.getElementById("sidebarOverlay");
+      const closeSidebar = document.getElementById("closeSidebar");
+
+      // Toggle sidebar
+      menuToggle.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sidebarMenu.classList.toggle("active");
+        sidebarOverlay.classList.toggle("active");
+      });
+
+      // Close sidebar when clicking close button
+      closeSidebar.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sidebarMenu.classList.remove("active");
+        sidebarOverlay.classList.remove("active");
+      });
+
+      // Close sidebar when clicking overlay
+      sidebarOverlay.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sidebarMenu.classList.remove("active");
+        sidebarOverlay.classList.remove("active");
+      });
+
+      // Optional: Close sidebar on file item click
+      document.querySelectorAll(".file-item").forEach((item) => {
+        item.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log(
+            "File clicked:",
+            item.querySelector(".file-name").textContent
+          );
+          // You can add your file selection logic here
+        });
+      });
+
+      // ==================== FETCH AND DISPLAY FILES FROM BACKEND ====================
+      let filesByEmail = {}; // Store files grouped by email
+
+      async function fetchAndDisplayFiles() {
+        try {
+          const loader = document.getElementById("loadingIndicator");
+          if (loader) loader.style.display = "flex";
+          const response = await fetch("/api/get-files");
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch files: ${response.status}`);
+          }
+
+          const data = await response.json();
+          console.log("Fetched files:", data);
+
+          // Check if response is successful
+          if (data.status !== "ok") {
+            throw new Error(data.message || "Failed to fetch files");
+          }
+
+          // Use already grouped data from Python endpoint
+          filesByEmail = data.files_by_email || {};
+
+          console.log(
+            `Loaded ${data.total_files} files from ${data.total_emails} email(s)`
+          );
+
+          // Display files in sidebar
+          displayFilesInSidebar();
+        } catch (error) {
+          console.error("Error fetching files:", error);
+          showToast("Failed to load files from server", "error");
+        } finally {
+          const loader = document.getElementById("loadingIndicator");
+          if (loader) loader.style.display = "none";
+        }
+      }
+
+
+function displayFilesInSidebar() {
+  const sidebarContent = document.getElementById("sidebarContent");
+  
+  if (!sidebarContent) {
+    console.error("Sidebar content element not found");
+    return;
+  }
+
+  // Clear existing content
+  sidebarContent.innerHTML = "";
+
+  // Check if there are any files
+  if (!filesByEmail || Object.keys(filesByEmail).length === 0) {
+    sidebarContent.innerHTML =
+      '<p style="text-align: center; color: #6b7280; padding: 20px;">No files found</p>';
+    return;
+  }
+
+  // Flatten all files from all emails into a single list with metadata
+  allFilesData = [];
+  Object.keys(filesByEmail).forEach((email) => {
+    const group = filesByEmail[email];
+    const filesArray = Array.isArray(group) ? group : (group && Array.isArray(group.files) ? group.files : []);
+    filesArray.forEach((file) => {
+      allFilesData.push({
+        ...file,
+        email: email // Store email for reference
+      });
+    });
+  });
+
+  // Apply initial sorting
+  sortAndDisplayFiles();
+}
+
+// NEW FUNCTION: Sort and display files
+function sortAndDisplayFiles() {
+  const sidebarContent = document.getElementById("sidebarContent");
+  
+  if (!sidebarContent || allFilesData.length === 0) return;
+
+  // Get search query
+  const searchQuery = document.getElementById("sidebarSearchInput")?.value.toLowerCase() || '';
+  
+  // Filter files based on search
+  let filteredFiles = allFilesData.filter(file => 
+    file.fileName.toLowerCase().includes(searchQuery)
+  );
+
+  // Sort files based on current sort order
+  filteredFiles.sort((a, b) => {
+    switch(currentSortOrder) {
+      case 'name-asc':
+        return a.fileName.localeCompare(b.fileName);
+      case 'name-desc':
+        return b.fileName.localeCompare(a.fileName);
+      case 'date-asc':
+        return (a.lastModified || '').localeCompare(b.lastModified || '');
+      case 'date-desc':
+        return (b.lastModified || '').localeCompare(a.lastModified || '');
+      default:
+        return 0;
+    }
+  });
+
+  // Clear content
+  sidebarContent.innerHTML = "";
+
+  // Show "no results" message if filtered list is empty
+  if (filteredFiles.length === 0) {
+    sidebarContent.innerHTML =
+      '<p style="text-align: center; color: #6b7280; padding: 20px;">No files match your search</p>';
+    return;
+  }
+
+  // Display filtered and sorted files
+  filteredFiles.forEach((file) => {
+    const fileItem = document.createElement("div");
+    fileItem.className = "file-item";
+    
+    // Format date for display
+    const lastModified = file.lastModified 
+      ? new Date(file.lastModified).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : 'Unknown date';
+    
+    fileItem.innerHTML = `
+      <div class="file-item-main">
+        <span class="file-icon">📘</span>
+        <div class="file-info">
+          <span class="file-name file-name-center" title="${file.fileName}">${file.fileName}</span>
+          <span class="file-date">${lastModified}</span>
+        </div>
+      </div>
+      <button class="file-close-btn" data-filepath="${file.fullPath}">✕</button>
+    `;
+
+    // Add click event for file selection
+    fileItem.querySelector(".file-item-main").addEventListener("click", () => {
+      console.log("Selected file:", file.fullPath);
+      showToast(`Selected: ${file.fileName}`, "info", 2000);
+    });
+
+    // Add click event for delete button
+    fileItem.querySelector(".file-close-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteFile(file.fullPath, fileItem);
+    });
+
+    sidebarContent.appendChild(fileItem);
+  });
+}
+
+
+      async function deleteFile(filePath, fileElement) {
+        if (confirm(`Are you sure you want to delete:\n${filePath}?`)) {
+          try {
+            const loader = document.getElementById("loadingIndicator");
+            if (loader) loader.style.display = "flex";
+            // Call backend API to delete file
+            const response = await fetch("/api/delete_file", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                file_path: filePath,
+              }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+      // Remove from display with animation
+              fileElement.style.animation = "fadeOut 0.3s ease";
+              setTimeout(() => {
+                fileElement.remove();
+
+        // Update filesByEmail object
+        const email = filePath.split("/")[0];
+        const group = filesByEmail[email];
+        if (group) {
+          if (Array.isArray(group)) {
+            filesByEmail[email] = group.filter((f) => f.fullPath !== filePath);
+            if (filesByEmail[email].length === 0) {
+              delete filesByEmail[email];
+            }
+          } else if (Array.isArray(group.files)) {
+            group.files = group.files.filter((f) => f.fullPath !== filePath);
+            group.fileCount = Math.max(0, (group.fileCount || 0) - 1);
+            const removed = allFilesData.find((f) => f.fullPath === filePath);
+            if (removed && removed.size) {
+              group.totalSize = Math.max(0, (group.totalSize || 0) - (removed.size || 0));
+              group.totalSizeFormatted = (typeof formatFileSize === 'function') ? formatFileSize(group.totalSize || 0) : (group.totalSize || 0) + ' B';
+            }
+            if (group.files.length === 0) {
+              delete filesByEmail[email];
+            }
+          }
+          // Refresh sidebar view
+          displayFilesInSidebar();
+        }
+
+                showToast("File deleted successfully", "success", 2000);
+              }, 300);
+            } else {
+              showToast(result.error || "Failed to delete file", "error", 3000);
+            }
+          } catch (error) {
+            console.error("Error deleting file:", error);
+            showToast("Error deleting file. Please try again.", "error", 3000);
+          } finally {
+            const loader = document.getElementById("loadingIndicator");
+            if (loader) loader.style.display = "none";
+          }
+        }
+      }
+
+      // ==================== MOBILE HAMBURGER MENU ====================
+      const hamburgerMenu = document.getElementById("hamburgerMenu");
+      const mobileMenu = document.getElementById("mobileMenu");
+      const mobileMenuOverlay = document.getElementById("mobileMenuOverlay");
+      const mobileCloseBtn = document.getElementById("mobileCloseBtn");
+
+      // Open mobile menu
+      hamburgerMenu.addEventListener("click", () => {
+        mobileMenu.classList.add("active");
+        mobileMenuOverlay.classList.add("active");
+        hamburgerMenu.classList.add("active");
+        document.body.style.overflow = "hidden"; // Prevent background scrolling
+      });
+
+      // Close mobile menu - Close button
+      mobileCloseBtn.addEventListener("click", () => {
+        mobileMenu.classList.remove("active");
+        mobileMenuOverlay.classList.remove("active");
+        hamburgerMenu.classList.remove("active");
+        document.body.style.overflow = "auto"; // Re-enable scrolling
+      });
+
+      // Close mobile menu - Overlay click
+      mobileMenuOverlay.addEventListener("click", () => {
+        mobileMenu.classList.remove("active");
+        mobileMenuOverlay.classList.remove("active");
+        hamburgerMenu.classList.remove("active");
+        document.body.style.overflow = "auto";
+      });
+
+      // Optional: Close menu when clicking a navigation link
+      document.querySelectorAll(".mobile-nav-link").forEach((link) => {
+        link.addEventListener("click", () => {
+          mobileMenu.classList.remove("active");
+          mobileMenuOverlay.classList.remove("active");
+          hamburgerMenu.classList.remove("active");
+          document.body.style.overflow = "auto";
+        });
+      });
+
+     
+
+      
+      // Load files into dropdown
+      async function loadFilesIntoDropdown() {
+        try {
+          const response = await fetch('/api/get-files');
+          if (!response.ok) {
+            throw new Error(`Failed to fetch files: ${response.status}`);
+          }
+
+          const data = await response.json();
+          if (data.status !== 'ok') {
+            throw new Error(data.message || 'Failed to fetch files');
+          }
+
+          const filesByEmail = data.files_by_email || {};
+          displayFilesInDropdown(filesByEmail);
+        } catch (error) {
+          console.error('Error loading files:', error);
+          dropdownContent.innerHTML = '<div class="dropdown-loading">Error loading files</div>';
+        }
+      }
+
+      function displayFilesInDropdown(filesByEmail) {
+        dropdownContent.innerHTML = '';
+
+        if (Object.keys(filesByEmail).length === 0) {
+          dropdownContent.innerHTML = '<div class="dropdown-loading">No files found</div>';
+          return;
+        }
+
+        // Flatten all files from all emails into a single list
+        const allFiles = [];
+        Object.keys(filesByEmail).forEach((email) => {
+          filesByEmail[email].forEach((file) => {
+            allFiles.push(file);
+          });
+        });
+
+        // Display all files without grouping
+        allFiles.forEach((file) => {
+          const fileItem = document.createElement('div');
+          fileItem.className = 'dropdown-file-item';
+          
+          // Check if this file is already selected
+          const isSelected = selectedFiles.some(f => f.name === file.fileName);
+          if (isSelected) {
+            fileItem.classList.add('selected');
+          }
+          
+          fileItem.innerHTML = `
+            <span class="file-icon">${getFileIcon(file.fileName)}</span>
+            <span class="file-name" title="${file.fileName}">${file.fileName}</span>
+            <span class="file-size">${formatFileSize(file.size || 0)}</span>
+          `;
+
+          fileItem.addEventListener('click', () => {
+            // Toggle selection
+            fileItem.classList.toggle('selected');
+            
+            // Add to selected files if not already added
+            if (fileItem.classList.contains('selected')) {
+              if (!selectedFiles.some(f => f.name === file.fileName)) {
+                selectedFiles.push({
+                  name: file.fileName,
+                  path: file.fullPath,
+                  size: file.size || 0
+                });
+              }
+            } else {
+              // Remove from selected files
+              selectedFiles = selectedFiles.filter(f => f.name !== file.fileName);
+            }
+            
+            displayFiles();
+            updateStats();
+            showToast(`File ${fileItem.classList.contains('selected') ? 'selected' : 'deselected'}: ${file.fileName}`, 'info', 2000);
+          });
+
+          dropdownContent.appendChild(fileItem);
+        });
+      }
+
+      // Load files when page loads
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('Loading files into sidebar and dropdown...');
+        fetchAndDisplayFiles();
+        //loadFilesIntoDropdown();
+      });
+
+
+
+      function filterAndDisplayFiles() {
+  // Reuse the unified sorter/renderer which reads the current search input value
+  sortAndDisplayFiles();
+}
+// NEW: Event listeners for search and sort
+// Event listeners for search and sort
+window.addEventListener('load', function() {
+  // Search input event listener
+  const searchInput = document.getElementById('sidebarSearchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      filterAndDisplayFiles(searchTerm);
+    });
+  }
+
+  // Sort dropdown event listener
+  const sortSelect = document.getElementById('sidebarSortSelect');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', function() {
+      currentSortOrder = this.value;
+      displayFilesInSidebar(); // Re-display with new sort order
+    });
+  }
+});
+
+    </script>
+    <script>
+      // Inject minimal styles to center file names in the sidebar list
+      (function() {
+        const style = document.createElement('style');
+        style.textContent = `
+          .file-item-selected .file-info { display: flex; flex-direction: row; align-items: center; }
+          .file-item .file-name.file-name-center { display: block; width: 100%; text-align: center; }
+        `;
+        document.head.appendChild(style);
+      })();
+    </script>
+</body>
+
+</html>
