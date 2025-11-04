@@ -9,6 +9,7 @@ from bson import ObjectId
 import os
 import requests  # ✅ ADD THIS IMPORT
 from werkzeug.utils import secure_filename  # ✅ ADD THIS IMPORT
+import mimetypes
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'  # already present
 app.permanent_session_lifetime = timedelta(days=1)
@@ -667,7 +668,9 @@ def upload_file():
 
 # Upload configuration
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'txt', 'xlsx', 'csv', 'gif', 'zip', 'rar'}
+ALLOWED_EXTENSIONS = {
+    'jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'txt', 'xlsx', 'csv', 'gif', 'zip', 'rar', 'json', 'xlsb'
+}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -734,9 +737,13 @@ def handle_upload():
                     file.seek(0)  # Reset pointer before reading
                     file_content = file.read()
                     
+                    # Determine MIME type based on filename; default to octet-stream
+                    guessed_mime, _ = mimetypes.guess_type(filename)
+                    content_type = guessed_mime or 'application/octet-stream'
+
                     # IMPORTANT: Azure expects 'file' (singular) as the parameter name
                     files_to_upload = {
-                        'file': (filename, file_content, 'application/pdf')
+                        'file': (filename, file_content, content_type)
                     }
                     
                     print(f"📤 Uploading {filename} to Azure...")
@@ -844,10 +851,10 @@ def handle_upload():
                         'error': error_msg
                     })
             else:
-                errors.append(f'{file.filename}: Invalid file type (only PDF allowed)')
+                errors.append(f"{file.filename}: Invalid file type")
                 uploaded_files.append({
                     'filename': file.filename,
-                    'error': 'Invalid file type - only PDF files are allowed'
+                    'error': 'Invalid file type'
                 })
 
         # Determine overall status
@@ -1298,4 +1305,4 @@ def delete_file():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)), debug=True)
