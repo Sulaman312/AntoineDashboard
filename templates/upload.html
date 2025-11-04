@@ -145,7 +145,7 @@
               </button>
             </div>
             <input type="file" id="fileInput" class="file-input" multiple
-              accept=".pdf,.doc,.docx,.txt,.xlsx,.csv,.ppt,.pptx,.jpg,.jpeg,.png,.gif" />
+              accept=".pdf,.doc,.docx,.txt,.xlsx,.csv,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.json,.xlsb" />
           </div>
          
             </div>
@@ -219,19 +219,20 @@
  
   <h3 class="supported-files-title">Supported File Types</h3>
   
-  <div class="file-types-content">
-    <p class="file-types-description">
-      <span class="file-format">PDF</span> 
-      <span class="file-format">DOC</span> 
-      <span class="file-format">DOCX</span> 
-      <span class="file-format">TXT</span> 
-      <span class="file-format">XLSX</span> 
-      <span class="file-format">CSV</span> 
-      <span class="file-format">PPT</span> 
-      <span class="file-format">PPTX</span> 
-      <span class="file-format">Images</span> 
-      <span class="image-formats">(JPG, PNG, GIF)</span>
-    </p>
+<p class="file-types-description">
+  <span class="file-format">PDF</span> 
+  <span class="file-format">DOC</span> 
+  <span class="file-format">DOCX</span> 
+  <span class="file-format">TXT</span> 
+  <span class="file-format">XLSX</span>
+  <span class="file-format">XLSB</span>  <!-- ← Added -->
+  <span class="file-format">CSV</span>
+  <span class="file-format">JSON</span>  <!-- ← Added -->
+  <span class="file-format">PPT</span> 
+  <span class="file-format">PPTX</span> 
+  <span class="file-format">Images</span> 
+  <span class="image-formats">(JPG, PNG, GIF)</span>
+</p>
     
     <div class="file-size-divider"></div>
     
@@ -434,6 +435,8 @@
           ".jpeg",
           ".png",
           ".gif",
+          ".json",
+          ".xlsb",
         ];
 
         // Filter files by allowed extensions
@@ -539,6 +542,7 @@
           txt: "📄",
           xlsx: "📗",
           xls: "📗",
+          xlsb: "📗",
           csv: "📊",
           ppt: "📙",
           pptx: "📙",
@@ -546,6 +550,7 @@
           jpeg: "🖼️",
           png: "🖼️",
           gif: "🖼️",
+           json: "📄",
         };
 
         return iconMap[extension] || "📎";
