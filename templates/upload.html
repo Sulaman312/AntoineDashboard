@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Files - PetCare</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/upload.css') }}" />
+
+
+</head>
+
+
+<body>
+  <header>
+    <div class="logo">
+      <span class="brand">petcare</span>
+      <span class="brand-subtitle">PET SERVICES</span>
+    </div>
+
+    <!-- Navigation Tabs (Desktop) -->
+    <nav class="header-nav">
+      <a href="{{ url_for('dashboard') }}" class="nav-tab">Dashboard</a>
+      <a href="{{ url_for('chats') }}" class="nav-tab">Chats</a>
+      <a href="{{ url_for('upload_file') }}" class="nav-tab">Upload File</a>
+    </nav>
+
+    <div class="header-controls">
+      <form action="{{ url_for('logout') }}" method="get" class="logout-form">
+        <button type="submit" class="logout-btn">
+          Logout
+        </button>
+      </form>
+
+      <!-- Hamburger Icon (Mobile Only) -->
+      <button class="hamburger-menu" id="hamburgerMenu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
+
+  <!-- Loading Indicator (reused from index.html) -->
+  <div id="loadingIndicator">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <!-- Mobile Menu (Slides from Right) -->
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="mobile-close-btn" id="mobileCloseBtn">✕</button>
+
+    <div class="mobile-menu-content">
+      <h3 class="mobile-menu-title">Menu</h3>
+
+      <nav class="mobile-nav">
+        <a href="{{ url_for('dashboard') }}" class="mobile-nav-link">
+          
+          Dashboard
+        </a>
+        <a href="{{ url_for('chats') }}" class="mobile-nav-link">
+          <span class="mobile-nav-icon">💬</span>
+          Chats
+        </a>
+        <a href="{{ url_for('upload_file') }}" class="mobile-nav-link">
+         
+          Upload File
+        </a>
+      </nav>
+
+      <div class="mobile-logout">
+        <form action="{{ url_for('logout') }}" method="get">
+          <button type="submit" class="mobile-logout-btn">
+            <span class="mobile-nav-icon">🚪</span>
+            Logout
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIXED -->
+<div class="sidebar-menu active" id="sidebarMenu">
+  <!-- Resize Handle -->
+  <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
+  
+  <!-- NEW: Search and Sort Controls -->
+  <div class="sidebar-header">
+    <div class="sidebar-header-top">
+      <h3 class="sidebar-title">File List</h3>
+      <button class="close-btn-inside" id="closeSidebar">✕</button>
+    </div>
+    
+    <!-- Search Bar -->
+    <div class="sidebar-search">
+      <input 
+        type="text" 
+        id="sidebarSearchInput" 
+        class="sidebar-search-input" 
+        placeholder=" Search files..."
+      />
+    </div>
+    
+    <!-- Sort Dropdown -->
+    <div class="sidebar-sort">
+      <select id="sidebarSortSelect" class="sidebar-sort-select">
+        <option value="name-asc">Name (A-Z)</option>
+        <option value="name-desc">Name (Z-A)</option>
+        <option value="date-desc" selected>Latest Modified</option>
+        <option value="date-asc">Oldest Modified</option>
+      </select>
+    </div>
+  </div>
+  
+  <!-- File Content Area -->
+  <div class="sidebar-content" id="sidebarContent">
+    <p class="sidebar-loading">
+      Loading files...
+    </p>
+  </div>
+</div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div>
+    <!-- Hamburger menu icon - hidden by default when sidebar is open -->
+    <button class="menu-toggle-btn" id="menuToggle" style="display: none;">☰</button>
+  </div>
+
+  <div class="container">
+    <div class="section-header">
+      <div class="uploaded-files-header">
+        <span class="header-text">Upload File</span>
+      </div>
+    </div>
+
+    <div class="upload-container">
+        <div class="upload-card">
+          <div class="upload-area" id="uploadArea">
+           <div class="upload-content_container">
+
+           
+            <div class="empty-state-container">
+             <div class="upload-icon">📁</div>
+              <p class="empty-message">Drag & drop files here</p>
+              <p class="empty-submessage">or click to browse from your device</p>
+              <p class="file-types-hint">Supports: PDF, DOC, DOCX, TXT, XLSX, CSV, PPT, PPTX, Images (JPG, PNG, GIF), JSON, XLSB</p>
+              <p class="max-size-hint">Max size: 10MB per file</p>
+            </div>
+            <input type="file" id="fileInput" class="file-input" multiple
+              accept=".pdf,.doc,.docx,.txt,.xlsx,.csv,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.json,.xlsb" />
+          </div>
+         
+            </div>
+
+
+
+         
+
+
+
+
+        </div>
+<div class="upload-action-container">
+
+ <button class="action-btn" id="uploadFileBtn" disabled>
+            <span class="btn-icon">📤</span>
+            Upload File
+          </button>
+        </div>
+     
+      </div>
+
+      <!-- Selected Files - Only shows when files are selected -->
+      <div class="selected-files-container" id="selectedFilesContainer" style="display: none;">
+        <div class="selected-files-list" id="fileItems"></div>
+      </div>
+    </div>
+
+   <!-- File Selection Dropdown
+        <div class="file-selection-dropdown" id="fileSelectionDropdown">
+          <div class="dropdown-header">
+            <span class="dropdown-icon"></span>
+            <span class="dropdown-title">Select Files</span>
+            <span class="dropdown-arrow" id="dropdownArrow">▼</span>
+          </div>
+          <div class="dropdown-content" id="dropdownContent">
+            <div class="dropdown-loading">Loading files...</div>
+          </div>
+        </div> -->
+        <!-- Left Side: Upload Area -->
+
+
+
+
+      <!-- End main-layout -->
+    </div>
+    <script>
+      const uploadArea = document.getElementById("uploadArea");
+      const fileInput = document.getElementById("fileInput");
+      const fileItems = document.getElementById("fileItems");
+      //const uploadBtn = document.getElementById("uploadBtn");
+      const uploadBtn = document.getElementById("uploadFileBtn");
+      // Statistics removed - no longer needed
+
+      let selectedFiles = [];
+// NEW: Variables for sidebar filtering and sorting
+    let allFilesData = []; // Store all files for filtering/sorting
+    let currentSortOrder = 'date-desc'; // Default sort order
+      // ==================== TOAST NOTIFICATION SYSTEM ====================
+      function showToast(message, type = "info", duration = 3000) {
+        // Remove existing toasts
+        const existingToasts = document.querySelectorAll(".custom-toast");
+        existingToasts.forEach((toast) => toast.remove());
+
+        // Create toast element
+        const toast = document.createElement("div");
+        toast.className = `custom-toast custom-toast-${type}`;
+
+        // Set icon based on type
+        let icon = "";
+        switch (type) {
+          case "success":
+            icon = "✅";
+            break;
+          case "error":
+            icon = "❌";
+            break;
+          case "warning":
+            icon = "⚠️";
+            break;
+          case "info":
+            icon = "ℹ️";
+            break;
+          default:
+            icon = "📝";
+        }
+
+        toast.innerHTML = `
+      <span class="toast-icon">${icon}</span>
+      <span class="toast-message">${message}</span>
+    `;
+
+        document.body.appendChild(toast);
+
+        // Trigger animation
+        setTimeout(() => toast.classList.add("show"), 10);
+
+        // Auto remove after duration
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+      }
+
+      // Add toast styles dynamically
+      const toastStyles = document.createElement("style");
+      toastStyles.textContent = `
+    .custom-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 10000;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+      max-width: 400px;
+      border-left: 4px solid #ccc;
+    }
+    
+    .custom-toast.show {
+      transform: translateX(0);
+    }
+    
+    .custom-toast-success {
+      border-left-color: #4caf50;
+      background: #f1f8f4;
+    }
+    
+    .custom-toast-error {
+      border-left-color: #f44336;
+      background: #fef1f0;
+    }
+    
+    .custom-toast-warning {
+      border-left-color: #ff9800;
+      background: #fff8f0;
+    }
+    
+    .custom-toast-info {
+      border-left-color: #2196f3;
+      background: #f0f7ff;
+    }
+    
+    .toast-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    
+    .toast-message {
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+    }
+  `;
+      document.head.appendChild(toastStyles);
+
+      // ==================== FILE SELECTION HANDLERS ====================
+
+      // Click anywhere on upload area to browse files
+      uploadArea.addEventListener("click", (e) => {
+        // Don't trigger if clicking on interactive elements
+        if (
+          e.target.closest(".file-item") ||
+          e.target.closest(".remove-btn") ||
+          e.target.closest(".file-list") ||
+          e.target.closest(".upload-text") ||
+          e.target.tagName === "BUTTON" ||
+          e.target.tagName === "INPUT"
+        ) {
+          return;
+        }
+        fileInput.click();
+      });
+
+      // Drag and drop events
+      uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadArea.classList.add("dragover");
+      });
+
+      uploadArea.addEventListener("dragleave", () => {
+        uploadArea.classList.remove("dragover");
+      });
+
+      uploadArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove("dragover");
+        const files = Array.from(e.dataTransfer.files);
+        handleFiles(files);
+      });
+
+      // File input change
+      fileInput.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        handleFiles(files);
+        // Reset file input to allow selecting the same file again if needed
+        e.target.value = "";
+      });
+      function handleFiles(files) {
+        // Define allowed file extensions - must match Azure backend requirements
+        const allowedExtensions = [
+          ".pdf",
+          ".doc",
+          ".docx",
+          ".txt",
+          ".xlsx",
+          ".xls",
+          ".csv",
+          ".ppt",
+          ".pptx",
+          ".jpg",
+          ".jpeg",
+          ".png",
+          ".gif",
+          ".json",
+          ".xlsb"
+        ];
+
+        // Filter files by allowed extensions
+        const validFiles = files.filter((file) => {
+          const fileName = file.name.toLowerCase();
+          return allowedExtensions.some((ext) => fileName.endsWith(ext));
+        });
+
+        // Check for invalid files
+        const invalidFiles = files.filter((file) => {
+          const fileName = file.name.toLowerCase();
+          return !allowedExtensions.some((ext) => fileName.endsWith(ext));
+        });
+
+        if (invalidFiles.length > 0) {
+          const invalidNames = invalidFiles.map(f => f.name).join(", ");
+          showToast(
+            `Invalid file type(s): ${invalidNames}. Please select supported file types.`,
+            "warning",
+            5000
+          );
+        }
+
+        if (validFiles.length === 0) {
+          showToast(
+            "No valid files selected! Please select supported file types.",
+            "warning"
+          );
+          return;
+        }
+
+        let addedCount = 0;
+        let rejectedCount = 0;
+
+        validFiles.forEach((file) => {
+          // Check file size (10MB limit)
+          if (file.size > 10 * 1024 * 1024) {
+            showToast(`File "${file.name}" is too large (max 10MB)`, "warning");
+            rejectedCount++;
+            return;
+          }
+
+          // Check for duplicates
+          if (
+            !selectedFiles.some(
+              (f) => f.name === file.name && f.size === file.size
+            )
+          ) {
+            selectedFiles.push(file);
+            addedCount++;
+          }
+        });
+
+        if (addedCount > 0) {
+          showToast(`${addedCount} file(s) added`, "success", 2000);
+        }
+
+        if (rejectedCount > 0) {
+          showToast(
+            `${rejectedCount} file(s) rejected (too large)`,
+            "warning",
+            2000
+          );
+        }
+
+        displayFiles();
+        updateStats();
+      }
+
+      function displayFiles() {
+        const uploadBtn = document.getElementById("uploadFileBtn");
+        const fileItems = document.getElementById("fileItems");
+        const selectedFilesContainer = document.getElementById("selectedFilesContainer");
+        
+        if (selectedFiles.length === 0) {
+          if (uploadBtn) uploadBtn.disabled = true;
+          if (selectedFilesContainer) selectedFilesContainer.style.display = "none";
+          return;
+        }
+
+        if (uploadBtn) uploadBtn.disabled = false;
+        if (selectedFilesContainer) selectedFilesContainer.style.display = "block";
+        if (!fileItems) return;
+
+        fileItems.innerHTML = "";
+
+        selectedFiles.forEach((file, index) => {
+          const fileItem = document.createElement("div");
+          fileItem.className = "selected-file-item";
+
+          const fileSize = formatFileSize(file.size);
+          const fileName = file.name;
+
+          fileItem.innerHTML = `
+            <div class="selected-file-info">
+              <div class="selected-file-name" title="${fileName}">${fileName}</div>
+              <div class="selected-file-meta">
+                <span class="selected-file-size">${fileSize}</span>
+              </div>
+            </div>
+            <button class="selected-file-remove" onclick="removeFile(${index}); event.stopPropagation();" title="Remove file">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          `;
+
+          fileItems.appendChild(fileItem);
+        });
+      }
+
+      function getFileIcon(filename) {
+        const extension = filename.toLowerCase().split(".").pop();
+
+        const iconMap = {
+          pdf: "📕",
+          doc: "📘",
+          docx: "📘",
+          txt: "📄",
+          xlsx: "📗",
+          xls: "📗",
+          xlsb: "📗",
+          csv: "📊",
+          ppt: "📙",
+          pptx: "📙",
+          jpg: "🖼️",
+          jpeg: "🖼️",
+          png: "🖼️",
+          gif: "🖼️",
+           json: "📄",
+        };
+
+        return iconMap[extension] || "📎";
+      }
+
+      function removeFile(index) {
+        const fileName = selectedFiles[index].name;
+        selectedFiles.splice(index, 1);
+        displayFiles();
+        updateStats();
+        showToast(`${fileName} removed`, "info", 2000);
+      }
+
+      function updateStats() {
+        // Statistics removed - function kept for compatibility but does nothing
+      }
+
+      function formatFileSize(bytes) {
+        if (!bytes || bytes === 0) return "0 Bytes";
+        if (isNaN(bytes)) return "Unknown size";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (
+          Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+        );
+      }
+
+      // ==================== UPLOAD HANDLER WITH INGESTION ====================
+      async function uploadFilesToBlobStorage() {
+        if (selectedFiles.length === 0) {
+          showToast("Please select at least one file!", "warning");
+          return;
+        }
+
+        // Disable button during upload
+        const uploadBtn = document.getElementById("uploadFileBtn");
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = " Uploading...";
+        // Show global loader
+        const globalLoader = document.getElementById("loadingIndicator");
+        if (globalLoader) globalLoader.style.display = "flex";
+
+        try {
+          // ========== STEP 1: UPLOAD FILES ==========
+          showToast(
+            `Uploading ${selectedFiles.length} file(s)...`,
+            "info",
+            2000
+          );
+
+          const formData = new FormData();
+          selectedFiles.forEach((file) => {
+            formData.append("files", file);
+          });
+
+          const uploadUrl = `/upload/multiple`;
+
+          console.log(
+            `📤 Step 1: Uploading ${selectedFiles.length} file(s)...`
+          );
+
+          const uploadResponse = await fetch(uploadUrl, {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error(
+              `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
+            );
+          }
+
+          const uploadResult = await uploadResponse.json();
+          console.log("✅ Upload response:", uploadResult);
+
+          if (uploadResult.status !== "ok") {
+            throw new Error(uploadResult.message || "Upload failed");
+          }
+
+          // Show upload success
+          const successfulUploads = uploadResult.uploaded_files.filter(
+            (f) => !f.error
+          );
+          const failedUploads = uploadResult.uploaded_files.filter(
+            (f) => f.error
+          );
+
+          if (successfulUploads.length > 0) {
+            showToast(
+              `✅ ${successfulUploads.length} file(s) uploaded successfully!`,
+              "success",
+              3000
+            );
+          }
+
+          if (failedUploads.length > 0) {
+            showToast(
+              `⚠️ ${failedUploads.length} file(s) failed to upload`,
+              "warning",
+              3000
+            );
+          }
+
+          // ========== STEP 2: EXTRACT FILE PATHS ==========
+          const filePaths = [];
+          successfulUploads.forEach((file) => {
+            if (file.blob_path) {
+              filePaths.push(file.blob_path);
+            }
+          });
+
+          console.log(
+            `📁 Extracted ${filePaths.length} file paths for ingestion`
+          );
+
+          // ========== STEP 3: INGEST FILES ==========
+          let ingestionResult = null;
+          if (filePaths.length > 0) {
+            uploadBtn.textContent = "🔄 Processing files...";
+            showToast(
+              `Processing ${filePaths.length} file(s)...`,
+              "info",
+              2000
+            );
+
+            console.log(
+              `📥 Step 2: Starting ingestion for ${filePaths.length} file(s)...`
+            );
+
+            const ingestionResponse = await fetch("/ingest/files", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                file_paths: filePaths,
+              }),
+            });
+
+            if (!ingestionResponse.ok) {
+              console.warn(
+                `⚠️ Ingestion returned status ${ingestionResponse.status}`
+              );
+            }
+
+            ingestionResult = await ingestionResponse.json();
+            console.log("✅ Ingestion response:", ingestionResult);
+
+            // Show ingestion success
+            if (ingestionResult.status === "ok") {
+              showToast(
+                `✅ ${ingestionResult.successful_ingestions || filePaths.length} file(s) processed successfully!`,
+                "success",
+                4000
+              );
+            } else {
+              showToast(`⚠️ Ingestion completed with errors`, "warning", 3000);
+            }
+          }
+
+          // Clear all files after successful processing
+          selectedFiles = [];
+          displayFiles();
+          updateStats();
+          fileInput.value = "";
+
+          // Refresh the dropdown to show new files
+          loadFilesIntoDropdown();
+          // Also refresh the sidebar file list
+          fetchAndDisplayFiles();
+
+          console.log("✅ All operations completed successfully");
+
+          // Final success toast
+          showToast(" All operations completed!", "success", 3000);
+        } catch (error) {
+          console.error("❌ Error:", error);
+          showToast(`Error: ${error.message}`, "error", 5000);
+        } finally {
+          // Update button state based on file selection (displayFiles handles this)
+          displayFiles();
+          uploadBtn.textContent = " Upload File";
+          // Hide global loader
+          const globalLoader = document.getElementById("loadingIndicator");
+          if (globalLoader) globalLoader.style.display = "none";
+        }
+      }
+
+      // Upload button click handler
+      document.getElementById('uploadFileBtn').addEventListener('click', uploadFilesToBlobStorage);
+
+      // sidebar code
+      // ==================== SIDEBAR MENU TOGGLE ====================
+      const menuToggle = document.getElementById("menuToggle");
+      const sidebarMenu = document.getElementById("sidebarMenu");
+      const sidebarOverlay = document.getElementById("sidebarOverlay");
+      const closeSidebar = document.getElementById("closeSidebar");
+
+      // Toggle sidebar - show sidebar and hide hamburger
+      menuToggle.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sidebarMenu.classList.add("active");
+        menuToggle.style.display = "none"; // Hide hamburger when sidebar opens
+        // Don't show overlay - keep main screen active
+      });
+
+      // Close sidebar when clicking close button - hide sidebar and show hamburger
+      closeSidebar.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sidebarMenu.classList.remove("active");
+        menuToggle.style.display = "block"; // Show hamburger when sidebar closes
+        // Reset sidebar width to default when closing
+        setTimeout(() => {
+          if (sidebarMenu) {
+            sidebarMenu.style.width = '';
+          }
+        }, 100);
+      });
+
+      // Optional: Close sidebar on file item click
+      document.querySelectorAll(".file-item").forEach((item) => {
+        item.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log(
+            "File clicked:",
+            item.querySelector(".file-name").textContent
+          );
+          // You can add your file selection logic here
+        });
+      });
+
+      // ==================== FETCH AND DISPLAY FILES FROM BACKEND ====================
+      let filesByEmail = {}; // Store files grouped by email
+
+      async function fetchAndDisplayFiles() {
+        try {
+          const loader = document.getElementById("loadingIndicator");
+          const sidebarContent = document.getElementById("sidebarContent");
+          
+          if (loader) loader.style.display = "flex";
+          if (sidebarContent) {
+            sidebarContent.innerHTML = '<p class="sidebar-loading">Loading files...</p>';
+          }
+          
+          // Increase timeout for the fetch request
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 35000); // 35 second timeout
+          
+          let response;
+          try {
+            response = await fetch("/api/get-files", {
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+              throw new Error('Request timed out. The backend service is taking too long to respond.');
+            }
+            throw fetchError;
+          }
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            if (response.status === 504) {
+              throw new Error('Backend service timed out. Please try again in a moment.');
+            }
+            throw new Error(errorData.message || `Failed to fetch files: ${response.status} ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          console.log("Fetched files:", data);
+
+          // Check if response is successful
+          if (data.status !== "ok") {
+            throw new Error(data.message || "Failed to fetch files");
+          }
+
+          // Use already grouped data from Python endpoint
+          filesByEmail = data.files_by_email || {};
+
+          console.log(
+            `Loaded ${data.total_files || 0} files from ${data.total_emails || 0} email(s)`
+          );
+
+          // Display files in sidebar
+          try {
+            displayFilesInSidebar();
+          } catch (error) {
+            console.error("Error displaying files in sidebar:", error);
+            const sidebarContent = document.getElementById("sidebarContent");
+            if (sidebarContent) {
+              sidebarContent.innerHTML = 
+                `<p style="text-align: center; color: #dc2626; padding: 20px;">Error displaying files: ${error.message}</p>`;
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching files:", error);
+          const sidebarContent = document.getElementById("sidebarContent");
+          if (sidebarContent) {
+            let errorMessage = error.message || "Unknown error occurred";
+            if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
+              errorMessage = "Backend service is taking too long to respond. Please try again in a moment.";
+            }
+            sidebarContent.innerHTML = 
+              `<div style="text-align: center; color: #dc2626; padding: 20px;">
+                <p style="font-weight: 600; margin-bottom: 8px;">Error loading files</p>
+                <p style="font-size: 13px; color: #6b7280;">${errorMessage}</p>
+                <button onclick="fetchAndDisplayFiles()" style="margin-top: 12px; padding: 8px 16px; background: #3598db; color: white; border: none; border-radius: 6px; cursor: pointer;">Retry</button>
+              </div>`;
+          }
+          showToast(`Failed to load files: ${error.message}`, "error", 5000);
+        } finally {
+          const loader = document.getElementById("loadingIndicator");
+          if (loader) loader.style.display = "none";
+        }
+      }
+
+
+function displayFilesInSidebar() {
+  try {
+    const sidebarContent = document.getElementById("sidebarContent");
+    
+    if (!sidebarContent) {
+      console.error("Sidebar content element not found");
+      return;
+    }
+
+    // Clear existing content
+    sidebarContent.innerHTML = "";
+
+    // Check if there are any files
+    if (!filesByEmail || Object.keys(filesByEmail).length === 0) {
+      sidebarContent.innerHTML =
+        '<p style="text-align: center; color: #6b7280; padding: 20px;">No files found</p>';
+      return;
+    }
+
+    // Flatten all files from all emails into a single list with metadata
+    allFilesData = [];
+    Object.keys(filesByEmail).forEach((email) => {
+      const group = filesByEmail[email];
+      const filesArray = Array.isArray(group) ? group : (group && Array.isArray(group.files) ? group.files : []);
+      filesArray.forEach((file) => {
+        allFilesData.push({
+          ...file,
+          email: email // Store email for reference
+        });
+      });
+    });
+
+    console.log(`Processed ${allFilesData.length} files for display`);
+
+    // Apply initial sorting
+    sortAndDisplayFiles();
+  } catch (error) {
+    console.error("Error in displayFilesInSidebar:", error);
+    const sidebarContent = document.getElementById("sidebarContent");
+    if (sidebarContent) {
+      sidebarContent.innerHTML = 
+        `<p style="text-align: center; color: #dc2626; padding: 20px;">Error: ${error.message}</p>`;
+    }
+  }
+}
+
+// NEW FUNCTION: Sort and display files
+function sortAndDisplayFiles() {
+  const sidebarContent = document.getElementById("sidebarContent");
+  
+  if (!sidebarContent) {
+    console.error("Sidebar content element not found");
+    return;
+  }
+  
+  if (!allFilesData || allFilesData.length === 0) {
+    sidebarContent.innerHTML =
+      '<p style="text-align: center; color: #6b7280; padding: 20px;">No files found</p>';
+    return;
+  }
+
+  // Get search query
+  const searchQuery = document.getElementById("sidebarSearchInput")?.value.toLowerCase() || '';
+  
+  // Filter files based on search
+  let filteredFiles = allFilesData.filter(file => {
+    if (!file || !file.fileName) return false;
+    return file.fileName.toLowerCase().includes(searchQuery);
+  });
+
+  // Sort files based on current sort order
+  filteredFiles.sort((a, b) => {
+    switch(currentSortOrder) {
+      case 'name-asc':
+        return a.fileName.localeCompare(b.fileName);
+      case 'name-desc':
+        return b.fileName.localeCompare(a.fileName);
+      case 'date-asc':
+        return (a.lastModified || '').localeCompare(b.lastModified || '');
+      case 'date-desc':
+        return (b.lastModified || '').localeCompare(a.lastModified || '');
+      default:
+        return 0;
+    }
+  });
+
+  // Clear content
+  sidebarContent.innerHTML = "";
+
+  // Show "no results" message if filtered list is empty
+  if (filteredFiles.length === 0) {
+    sidebarContent.innerHTML =
+      '<p style="text-align: center; color: #6b7280; padding: 20px;">No files match your search</p>';
+    return;
+  }
+
+  // Display filtered and sorted files
+  filteredFiles.forEach((file) => {
+    try {
+      // Validate file object has required properties
+      if (!file || !file.fileName) {
+        console.warn("Invalid file object:", file);
+        return;
+      }
+      
+      const fileItem = document.createElement("div");
+      fileItem.className = "file-item";
+      
+      // Format date for display
+      const lastModified = file.lastModified 
+        ? new Date(file.lastModified).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : 'Unknown date';
+      
+      // Escape HTML to prevent XSS
+      const fileName = file.fileName || 'Unknown file';
+      const filePath = file.fullPath || '';
+      let fileSize = 'Unknown size';
+      try {
+        if (file.size !== undefined && file.size !== null) {
+          fileSize = formatFileSize(file.size);
+        }
+      } catch (e) {
+        console.warn('Error formatting file size:', e);
+        fileSize = 'Unknown size';
+      }
+      
+      fileItem.innerHTML = `
+        <div class="file-item-main">
+          <div class="file-info">
+            <span class="file-name" title="${fileName.replace(/"/g, '&quot;')}">${fileName}</span>
+            <div class="file-meta">
+              <span class="file-date">${lastModified}</span>
+              <span class="file-size-badge">${fileSize}</span>
+            </div>
+          </div>
+        </div>
+        <button class="file-close-btn" data-filepath="${filePath.replace(/"/g, '&quot;')}">✕</button>
+      `;
+
+      // Add click event for file selection
+      const fileItemMain = fileItem.querySelector(".file-item-main");
+      if (fileItemMain) {
+        fileItemMain.addEventListener("click", () => {
+          console.log("Selected file:", filePath);
+          showToast(`Selected: ${fileName}`, "info", 2000);
+        });
+      }
+
+      // Add click event for delete button
+      const closeBtn = fileItem.querySelector(".file-close-btn");
+      if (closeBtn && filePath) {
+        closeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteFile(filePath, fileItem);
+        });
+      }
+
+      sidebarContent.appendChild(fileItem);
+    } catch (error) {
+      console.error("Error creating file item:", error, file);
+    }
+  });
+}
+
+
+      async function deleteFile(filePath, fileElement) {
+        if (confirm(`Are you sure you want to delete:\n${filePath}?`)) {
+          try {
+            const loader = document.getElementById("loadingIndicator");
+            if (loader) loader.style.display = "flex";
+            // Call backend API to delete file
+            const response = await fetch("/api/delete_file", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                file_path: filePath,
+              }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+      // Remove from display with animation
+              fileElement.style.animation = "fadeOut 0.3s ease";
+              setTimeout(() => {
+                fileElement.remove();
+
+        // Update filesByEmail object
+        const email = filePath.split("/")[0];
+        const group = filesByEmail[email];
+        if (group) {
+          if (Array.isArray(group)) {
+            filesByEmail[email] = group.filter((f) => f.fullPath !== filePath);
+            if (filesByEmail[email].length === 0) {
+              delete filesByEmail[email];
+            }
+          } else if (Array.isArray(group.files)) {
+            group.files = group.files.filter((f) => f.fullPath !== filePath);
+            group.fileCount = Math.max(0, (group.fileCount || 0) - 1);
+            const removed = allFilesData.find((f) => f.fullPath === filePath);
+            if (removed && removed.size) {
+              group.totalSize = Math.max(0, (group.totalSize || 0) - (removed.size || 0));
+              group.totalSizeFormatted = (typeof formatFileSize === 'function') ? formatFileSize(group.totalSize || 0) : (group.totalSize || 0) + ' B';
+            }
+            if (group.files.length === 0) {
+              delete filesByEmail[email];
+            }
+          }
+          // Refresh sidebar view
+          displayFilesInSidebar();
+        }
+
+                showToast("File deleted successfully", "success", 2000);
+              }, 300);
+            } else {
+              showToast(result.error || "Failed to delete file", "error", 3000);
+            }
+          } catch (error) {
+            console.error("Error deleting file:", error);
+            showToast("Error deleting file. Please try again.", "error", 3000);
+          } finally {
+            const loader = document.getElementById("loadingIndicator");
+            if (loader) loader.style.display = "none";
+          }
+        }
+      }
+
+      // ==================== MOBILE HAMBURGER MENU ====================
+      const hamburgerMenu = document.getElementById("hamburgerMenu");
+      const mobileMenu = document.getElementById("mobileMenu");
+      const mobileMenuOverlay = document.getElementById("mobileMenuOverlay");
+      const mobileCloseBtn = document.getElementById("mobileCloseBtn");
+
+      // Open mobile menu
+      hamburgerMenu.addEventListener("click", () => {
+        mobileMenu.classList.add("active");
+        mobileMenuOverlay.classList.add("active");
+        hamburgerMenu.classList.add("active");
+        document.body.style.overflow = "hidden"; // Prevent background scrolling
+      });
+
+      // Close mobile menu - Close button
+      mobileCloseBtn.addEventListener("click", () => {
+        mobileMenu.classList.remove("active");
+        mobileMenuOverlay.classList.remove("active");
+        hamburgerMenu.classList.remove("active");
+        document.body.style.overflow = "auto"; // Re-enable scrolling
+      });
+
+      // Close mobile menu - Overlay click
+      mobileMenuOverlay.addEventListener("click", () => {
+        mobileMenu.classList.remove("active");
+        mobileMenuOverlay.classList.remove("active");
+        hamburgerMenu.classList.remove("active");
+        document.body.style.overflow = "auto";
+      });
+
+      // Optional: Close menu when clicking a navigation link
+      document.querySelectorAll(".mobile-nav-link").forEach((link) => {
+        link.addEventListener("click", () => {
+          mobileMenu.classList.remove("active");
+          mobileMenuOverlay.classList.remove("active");
+          hamburgerMenu.classList.remove("active");
+          document.body.style.overflow = "auto";
+        });
+      });
+
+     
+
+      
+      // Load files into dropdown
+      async function loadFilesIntoDropdown() {
+        try {
+          const response = await fetch('/api/get-files');
+          if (!response.ok) {
+            throw new Error(`Failed to fetch files: ${response.status}`);
+          }
+
+          const data = await response.json();
+          if (data.status !== 'ok') {
+            throw new Error(data.message || 'Failed to fetch files');
+          }
+
+          const filesByEmail = data.files_by_email || {};
+          displayFilesInDropdown(filesByEmail);
+        } catch (error) {
+          console.error('Error loading files:', error);
+          dropdownContent.innerHTML = '<div class="dropdown-loading">Error loading files</div>';
+        }
+      }
+
+      function displayFilesInDropdown(filesByEmail) {
+        dropdownContent.innerHTML = '';
+
+        if (Object.keys(filesByEmail).length === 0) {
+          dropdownContent.innerHTML = '<div class="dropdown-loading">No files found</div>';
+          return;
+        }
+
+        // Flatten all files from all emails into a single list
+        const allFiles = [];
+        Object.keys(filesByEmail).forEach((email) => {
+          filesByEmail[email].forEach((file) => {
+            allFiles.push(file);
+          });
+        });
+
+        // Display all files without grouping
+        allFiles.forEach((file) => {
+          const fileItem = document.createElement('div');
+          fileItem.className = 'dropdown-file-item';
+          
+          // Check if this file is already selected
+          const isSelected = selectedFiles.some(f => f.name === file.fileName);
+          if (isSelected) {
+            fileItem.classList.add('selected');
+          }
+          
+          fileItem.innerHTML = `
+            <span class="file-icon">${getFileIcon(file.fileName)}</span>
+            <span class="file-name" title="${file.fileName}">${file.fileName}</span>
+            <span class="file-size">${formatFileSize(file.size || 0)}</span>
+          `;
+
+          fileItem.addEventListener('click', () => {
+            // Toggle selection
+            fileItem.classList.toggle('selected');
+            
+            // Add to selected files if not already added
+            if (fileItem.classList.contains('selected')) {
+              if (!selectedFiles.some(f => f.name === file.fileName)) {
+                selectedFiles.push({
+                  name: file.fileName,
+                  path: file.fullPath,
+                  size: file.size || 0
+                });
+              }
+            } else {
+              // Remove from selected files
+              selectedFiles = selectedFiles.filter(f => f.name !== file.fileName);
+            }
+            
+            displayFiles();
+            updateStats();
+            showToast(`File ${fileItem.classList.contains('selected') ? 'selected' : 'deselected'}: ${file.fileName}`, 'info', 2000);
+          });
+
+          dropdownContent.appendChild(fileItem);
+        });
+      }
+
+      // Load files when page loads
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('Page loaded, initializing...');
+        
+        // Ensure sidebar is visible by default and hamburger is hidden
+        const sidebarMenu = document.getElementById('sidebarMenu');
+        const menuToggle = document.getElementById('menuToggle');
+        if (sidebarMenu && menuToggle) {
+          sidebarMenu.classList.add('active');
+          menuToggle.style.display = 'none';
+        }
+        
+        // Load files into sidebar
+        console.log('Loading files into sidebar...');
+        try {
+          fetchAndDisplayFiles();
+        } catch (error) {
+          console.error('Error loading files on page load:', error);
+        }
+      });
+
+
+
+      function filterAndDisplayFiles() {
+  // Reuse the unified sorter/renderer which reads the current search input value
+  sortAndDisplayFiles();
+}
+// NEW: Event listeners for search and sort
+// Event listeners for search and sort
+window.addEventListener('load', function() {
+  // Search input event listener
+  const searchInput = document.getElementById('sidebarSearchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      filterAndDisplayFiles(searchTerm);
+    });
+  }
+
+  // Sort dropdown event listener
+  const sortSelect = document.getElementById('sidebarSortSelect');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', function() {
+      currentSortOrder = this.value;
+      displayFilesInSidebar(); // Re-display with new sort order
+    });
+  }
+});
+
+    </script>
+    <script>
+      // ==================== SIDEBAR RESIZE FUNCTIONALITY ====================
+      (function() {
+        const sidebar = document.getElementById('sidebarMenu');
+        const resizeHandle = document.getElementById('sidebarResizeHandle');
+        const DEFAULT_WIDTH = 320; // Default width from CSS
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        // Function to reset sidebar width to default
+        function resetSidebarWidth() {
+          if (sidebar) {
+            sidebar.style.width = DEFAULT_WIDTH + 'px';
+          }
+        }
+
+        // Function to save sidebar width to localStorage
+        function saveSidebarWidth(width) {
+          try {
+            localStorage.setItem('sidebarWidth', width.toString());
+          } catch (e) {
+            console.warn('Could not save sidebar width:', e);
+          }
+        }
+
+        // Function to load saved sidebar width
+        function loadSidebarWidth() {
+          try {
+            const savedWidth = localStorage.getItem('sidebarWidth');
+            if (savedWidth) {
+              const width = parseInt(savedWidth, 10);
+              if (width >= 250 && width <= 600 && sidebar) {
+                sidebar.style.width = width + 'px';
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('Could not load sidebar width:', e);
+          }
+          // Reset to default if no valid saved width
+          resetSidebarWidth();
+        }
+
+        // Load saved width when sidebar opens (via hamburger menu)
+        const menuToggle = document.getElementById('menuToggle');
+        const closeSidebar = document.getElementById('closeSidebar');
+        
+        if (menuToggle && sidebar) {
+          menuToggle.addEventListener('click', () => {
+            // Small delay to ensure sidebar is opening
+            setTimeout(() => {
+              if (sidebar.classList.contains('active')) {
+                loadSidebarWidth();
+              }
+            }, 10);
+          });
+        }
+        
+        // Load saved width on page load if sidebar is open by default
+        window.addEventListener('DOMContentLoaded', () => {
+          if (sidebar && sidebar.classList.contains('active')) {
+            loadSidebarWidth();
+          }
+        });
+
+        // Note: Width reset is handled in the main close button handler above
+        // This section only handles saving the width when resizing
+
+        if (resizeHandle && sidebar) {
+          resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = sidebar.offsetWidth;
+            sidebar.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+          });
+
+          document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const diff = e.clientX - startX;
+            const newWidth = startWidth + diff;
+            const minWidth = 250;
+            const maxWidth = 600;
+            
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+              sidebar.style.width = newWidth + 'px';
+            }
+          });
+
+          document.addEventListener('mouseup', () => {
+            if (isResizing) {
+              isResizing = false;
+              sidebar.classList.remove('resizing');
+              document.body.style.cursor = '';
+              document.body.style.userSelect = '';
+              
+              // Save the new width
+              if (sidebar.offsetWidth !== DEFAULT_WIDTH) {
+                saveSidebarWidth(sidebar.offsetWidth);
+              }
+            }
+          });
+        }
+      })();
+    </script>
+</body>
+
+</html>
