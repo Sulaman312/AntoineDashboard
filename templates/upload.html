@@ -7,6 +7,133 @@
   <title>Upload Files - PetCare</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/upload.css') }}" />
+  <style>
+    .file-preview-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease;
+      z-index: 9000;
+    }
+    .file-preview-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .file-preview-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease;
+      z-index: 9010;
+    }
+    .file-preview-modal.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .file-preview-modal .file-preview-container {
+      width: min(1024px, 95vw);
+      height: min(720px, 90vh);
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+    .file-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+      background: #f8fafc;
+      gap: 12px;
+    }
+    .file-preview-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0f172a;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-preview-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .file-preview-actions a {
+      font-size: 13px;
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .file-preview-actions a:hover {
+      text-decoration: underline;
+    }
+    .file-preview-close {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #334155;
+      line-height: 1;
+      padding: 4px;
+    }
+    .file-preview-close:hover {
+      color: #0f172a;
+    }
+    .file-preview-body {
+      flex: 1;
+      position: relative;
+      background: #0f172a;
+    }
+    .file-preview-body iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #1e293b;
+    }
+    .file-preview-status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #e2e8f0;
+      font-size: 14px;
+      text-align: center;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.82);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .file-preview-status.visible {
+      opacity: 1;
+    }
+    @media (max-width: 768px) {
+      .file-preview-modal {
+        padding: 16px;
+      }
+      .file-preview-modal .file-preview-container {
+        width: 100%;
+        height: 80vh;
+      }
+      .file-preview-actions a {
+        font-size: 12px;
+      }
+    }
+  </style>
 
 
 </head>
@@ -180,6 +307,23 @@
       </div>
     </div>
 
+  <div class="file-preview-overlay" id="filePreviewOverlay"></div>
+  <div class="file-preview-modal" id="filePreviewModal" aria-hidden="true">
+    <div class="file-preview-container" role="dialog" aria-modal="true" aria-labelledby="previewFileName">
+      <div class="file-preview-header">
+        <div class="file-preview-title" id="previewFileName">File preview</div>
+        <div class="file-preview-actions">
+          <a href="#" id="previewOpenExternal" target="_blank" rel="noopener noreferrer">Open in new tab</a>
+          <button class="file-preview-close" id="previewCloseBtn" type="button" aria-label="Close preview">✕</button>
+        </div>
+      </div>
+      <div class="file-preview-body">
+        <div class="file-preview-status visible" id="previewStatus">Select a file to load its preview.</div>
+        <iframe id="previewFrame" title="File preview"></iframe>
+      </div>
+    </div>
+  </div>
+
    <!-- File Selection Dropdown
         <div class="file-selection-dropdown" id="fileSelectionDropdown">
           <div class="dropdown-header">
@@ -199,12 +343,47 @@
       <!-- End main-layout -->
     </div>
     <script>
+      const BASE_URL = {{ base_url|tojson }};
+      const CONTENT_PREVIEW_BASE = (typeof BASE_URL === "string" && BASE_URL.length > 0)
+        ? `${BASE_URL.replace(/\/$/, "")}/content`
+        : "";
+
       const uploadArea = document.getElementById("uploadArea");
       const fileInput = document.getElementById("fileInput");
       const fileItems = document.getElementById("fileItems");
       //const uploadBtn = document.getElementById("uploadBtn");
       const uploadBtn = document.getElementById("uploadFileBtn");
       // Statistics removed - no longer needed
+      const previewOverlay = document.getElementById("filePreviewOverlay");
+      const previewModal = document.getElementById("filePreviewModal");
+      const previewFrame = document.getElementById("previewFrame");
+      const previewStatus = document.getElementById("previewStatus");
+      const previewFileName = document.getElementById("previewFileName");
+      const previewOpenExternal = document.getElementById("previewOpenExternal");
+      const previewCloseBtn = document.getElementById("previewCloseBtn");
+      const previewDefaultMessage = previewStatus ? previewStatus.textContent : "Select a file to load its preview.";
+      let currentPreviewUrl = "";
+      let previewStatusTimeoutId = null;
+
+      if (previewCloseBtn) {
+        previewCloseBtn.addEventListener("click", closeFilePreview);
+      }
+      if (previewOverlay) {
+        previewOverlay.addEventListener("click", closeFilePreview);
+      }
+      if (previewFrame) {
+        previewFrame.addEventListener("load", () => {
+          if (previewStatus) {
+            previewStatus.classList.remove("visible");
+            previewStatus.textContent = "";
+          }
+        });
+      }
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeFilePreview();
+        }
+      });
 
       let selectedFiles = [];
 // NEW: Variables for sidebar filtering and sorting
@@ -530,6 +709,108 @@
         return (
           Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
         );
+      }
+
+      function encodeFilePathForUrl(path) {
+        if (!path || typeof path !== "string") {
+          return "";
+        }
+        return path
+          .split("/")
+          .map((segment) => encodeURIComponent(segment))
+          .join("/");
+      }
+
+      function closeFilePreview() {
+        if (previewStatusTimeoutId) {
+          clearTimeout(previewStatusTimeoutId);
+          previewStatusTimeoutId = null;
+        }
+        if (previewModal) {
+          previewModal.classList.remove("open");
+          previewModal.setAttribute("aria-hidden", "true");
+        }
+        if (previewOverlay) {
+          previewOverlay.classList.remove("open");
+        }
+        if (previewFrame) {
+          previewFrame.removeAttribute("src");
+        }
+        if (previewStatus) {
+          previewStatus.textContent = previewDefaultMessage;
+          previewStatus.classList.add("visible");
+        }
+        if (previewFileName) {
+          previewFileName.textContent = "File preview";
+        }
+        if (previewOpenExternal) {
+          previewOpenExternal.removeAttribute("href");
+        }
+        currentPreviewUrl = "";
+        document.body.style.overflow = "";
+      }
+
+      async function openFilePreview(fileInfo) {
+        if (!fileInfo || !fileInfo.filePath) {
+          showToast("Preview is not available for this file.", "warning", 3000);
+          return;
+        }
+
+        if (!CONTENT_PREVIEW_BASE) {
+          showToast("Preview service is not configured.", "error", 4000);
+          return;
+        }
+
+        const safeFileName = fileInfo.fileName || fileInfo.filePath.split("/").pop() || "File preview";
+        const encodedPath = encodeFilePathForUrl(fileInfo.filePath);
+        if (!encodedPath) {
+          showToast("Unable to generate preview path.", "error", 4000);
+          return;
+        }
+
+        const previewUrl = `${CONTENT_PREVIEW_BASE}/${encodedPath}`;
+        currentPreviewUrl = previewUrl;
+
+        if (previewModal) {
+          previewModal.classList.add("open");
+          previewModal.setAttribute("aria-hidden", "false");
+        }
+        if (previewOverlay) {
+          previewOverlay.classList.add("open");
+        }
+        document.body.style.overflow = "hidden";
+
+        if (previewFileName) {
+          previewFileName.textContent = safeFileName;
+        }
+        if (previewOpenExternal) {
+          previewOpenExternal.href = previewUrl;
+        }
+        if (previewStatus) {
+          previewStatus.textContent = "Loading preview...";
+          previewStatus.classList.add("visible");
+        }
+
+        if (previewFrame) {
+          previewFrame.removeAttribute("src");
+          // Small delay gives the status overlay a chance to render
+          setTimeout(() => {
+            if (currentPreviewUrl === previewUrl) {
+              previewFrame.src = previewUrl;
+            }
+          }, 50);
+        }
+
+        if (previewStatusTimeoutId) {
+          clearTimeout(previewStatusTimeoutId);
+        }
+        previewStatusTimeoutId = setTimeout(() => {
+          if (previewStatus && currentPreviewUrl === previewUrl && previewStatus.classList.contains("visible")) {
+            previewStatus.textContent = "Still loading… If the preview does not appear, use \"Open in new tab\".";
+          }
+        }, 6000);
+
+        showToast(`Opening preview: ${safeFileName}`, "info", 2000);
       }
 
       // ==================== UPLOAD HANDLER WITH INGESTION ====================
@@ -976,8 +1257,11 @@ function sortAndDisplayFiles() {
       const fileItemMain = fileItem.querySelector(".file-item-main");
       if (fileItemMain) {
         fileItemMain.addEventListener("click", () => {
-          console.log("Selected file:", filePath);
-          showToast(`Selected: ${fileName}`, "info", 2000);
+          openFilePreview({
+            fileName: fileName,
+            filePath: filePath,
+            contentType: file.contentType || file.content_type || ''
+          });
         });
       }
 
