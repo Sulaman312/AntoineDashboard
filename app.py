@@ -662,7 +662,7 @@ def get_user_info():
     
 @app.route('/upload')
 def upload_file():
-    return render_template('upload.html')   
+    return render_template('upload.html', base_url=BASE_URL)
 
 
 
