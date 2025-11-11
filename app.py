@@ -662,7 +662,7 @@ def get_user_info():
     
 @app.route('/upload')
 def upload_file():
-    return render_template('upload.html')   
+    return render_template('upload.html', base_url=BASE_URL)
 
 
 
@@ -1083,15 +1083,31 @@ def get_files():
         # Backend service URL
         backend_url = f'{BASE_URL}/list_content_files'
         
-        # Call the backend service
-        response = requests.get(backend_url, timeout=10)
+        # Call the backend service with increased timeout
+        try:
+            response = requests.get(backend_url, timeout=30)
+        except requests.exceptions.Timeout:
+            return jsonify({
+                'status': 'error',
+                'message': 'Backend service request timed out. Please try again later.'
+            }), 504
+        except requests.exceptions.ConnectionError:
+            return jsonify({
+                'status': 'error',
+                'message': 'Could not connect to backend service. Please check your connection.'
+            }), 503
+        except requests.exceptions.RequestException as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error connecting to backend service: {str(e)}'
+            }), 500
         
         # Check if request was successful
         if response.status_code != 200:
             return jsonify({
                 'status': 'error',
                 'message': f'Backend service returned status code: {response.status_code}'
-            }), 500
+            }), response.status_code
         
         # Get the data from backend
         backend_data = response.json()
@@ -1202,18 +1218,6 @@ def get_files():
             'sort_by': sort_by,
             'sort_order': sort_order
         }), 200
-        
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'status': 'error',
-            'message': 'Backend service request timed out'
-        }), 504
-        
-    except requests.exceptions.ConnectionError:
-        return jsonify({
-            'status': 'error',
-            'message': 'Could not connect to backend service'
-        }), 503
         
     except Exception as e:
         print(f"Error in get_files endpoint: {str(e)}")

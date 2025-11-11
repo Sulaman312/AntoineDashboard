@@ -7,6 +7,133 @@
   <title>Upload Files - PetCare</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/upload.css') }}" />
+  <style>
+    .file-preview-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease;
+      z-index: 9000;
+    }
+    .file-preview-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .file-preview-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease;
+      z-index: 9010;
+    }
+    .file-preview-modal.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .file-preview-modal .file-preview-container {
+      width: min(1024px, 95vw);
+      height: min(720px, 90vh);
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+    .file-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+      background: #f8fafc;
+      gap: 12px;
+    }
+    .file-preview-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0f172a;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-preview-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .file-preview-actions a {
+      font-size: 13px;
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .file-preview-actions a:hover {
+      text-decoration: underline;
+    }
+    .file-preview-close {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #334155;
+      line-height: 1;
+      padding: 4px;
+    }
+    .file-preview-close:hover {
+      color: #0f172a;
+    }
+    .file-preview-body {
+      flex: 1;
+      position: relative;
+      background: #0f172a;
+    }
+    .file-preview-body iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #1e293b;
+    }
+    .file-preview-status {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #e2e8f0;
+      font-size: 14px;
+      text-align: center;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.82);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .file-preview-status.visible {
+      opacity: 1;
+    }
+    @media (max-width: 768px) {
+      .file-preview-modal {
+        padding: 16px;
+      }
+      .file-preview-modal .file-preview-container {
+        width: 100%;
+        height: 80vh;
+      }
+      .file-preview-actions a {
+        font-size: 12px;
+      }
+    }
+  </style>
 
 
 </head>
@@ -15,13 +142,14 @@
 <body>
   <header>
     <div class="logo">
-      <span class="brand">petcare</span>
-      <span class="brand-subtitle">PET SERVICES</span>
+      <span class="brand">Memoria</span>
+      <span class="brand-subtitle">Your company safe & AI our files </span>
     </div>
 
     <!-- Navigation Tabs (Desktop) -->
     <nav class="header-nav">
       <a href="{{ url_for('dashboard') }}" class="nav-tab">Dashboard</a>
+      <a href="{{ url_for('chats') }}" class="nav-tab">Chats</a>
       <a href="{{ url_for('upload_file') }}" class="nav-tab">Upload File</a>
     </nav>
 
@@ -61,6 +189,10 @@
           
           Dashboard
         </a>
+        <a href="{{ url_for('chats') }}" class="mobile-nav-link">
+          <span class="mobile-nav-icon">💬</span>
+          Chats
+        </a>
         <a href="{{ url_for('upload_file') }}" class="mobile-nav-link">
          
           Upload File
@@ -79,11 +211,16 @@
   </div>
 
   <!-- FIXED -->
-<div class="sidebar-menu" id="sidebarMenu">
-  <button class="close-btn-outside" id="closeSidebar">✕</button>
+<div class="sidebar-menu active" id="sidebarMenu">
+  <!-- Resize Handle -->
+  <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
   
   <!-- NEW: Search and Sort Controls -->
   <div class="sidebar-header">
+    <div class="sidebar-header-top">
+      <h3 class="sidebar-title">File List</h3>
+      <button class="close-btn-inside" id="closeSidebar">✕</button>
+    </div>
     
     <!-- Search Bar -->
     <div class="sidebar-search">
@@ -116,33 +253,29 @@
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <div>
-    <!-- Add this menu icon -->
-    <button class="menu-toggle-btn" id="menuToggle">☰</button>
+    <!-- Hamburger menu icon - hidden by default when sidebar is open -->
+    <button class="menu-toggle-btn" id="menuToggle" style="display: none;">☰</button>
   </div>
 
   <div class="container">
-    <div class="main-layout">
-      <div class="left-section">
-        <div class="section-header">
-          <div class="uploaded-files-header">
-          
-            <span class="header-text">Upload File</span>
-          </div>
-        </div>
+    <div class="section-header">
+      <div class="uploaded-files-header">
+        <span class="header-text">Upload File</span>
+      </div>
+    </div>
 
+    <div class="upload-container">
         <div class="upload-card">
           <div class="upload-area" id="uploadArea">
            <div class="upload-content_container">
 
            
             <div class="empty-state-container">
-             <div class="upload-icon">☁️</div>
-              <p class="empty-message">Drage your file here</p>
+             <div class="upload-icon">📁</div>
+              <p class="empty-message">Drag & drop files here</p>
               <p class="empty-submessage">or click to browse from your device</p>
-              <button class="browse-btn" type="button">
-            
-                Browse Files
-              </button>
+              <p class="file-types-hint">Supports: PDF, DOC, DOCX, TXT, XLSX, CSV, PPT, PPTX, Images (JPG, PNG, GIF), JSON, XLSB</p>
+              <p class="max-size-hint">Max size: 10MB per file</p>
             </div>
             <input type="file" id="fileInput" class="file-input" multiple
               accept=".pdf,.doc,.docx,.txt,.xlsx,.csv,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.json,.xlsb" />
@@ -160,15 +293,36 @@
         </div>
 <div class="upload-action-container">
 
- <button class="action-btn" id="uploadFileBtn">
-                                 Upload File
-                              </button>
+ <button class="action-btn" id="uploadFileBtn" disabled>
+            <span class="btn-icon">📤</span>
+            Upload File
+          </button>
         </div>
      
-        <div class="file-list" id="fileList">
-          <div class="file-list-title"> Selected Files</div>
-          <div id="fileItems"></div>
+      </div>
+
+      <!-- Selected Files - Only shows when files are selected -->
+      <div class="selected-files-container" id="selectedFilesContainer" style="display: none;">
+        <div class="selected-files-list" id="fileItems"></div>
+      </div>
+    </div>
+
+  <div class="file-preview-overlay" id="filePreviewOverlay"></div>
+  <div class="file-preview-modal" id="filePreviewModal" aria-hidden="true">
+    <div class="file-preview-container" role="dialog" aria-modal="true" aria-labelledby="previewFileName">
+      <div class="file-preview-header">
+        <div class="file-preview-title" id="previewFileName">File preview</div>
+        <div class="file-preview-actions">
+          <a href="#" id="previewOpenExternal" target="_blank" rel="noopener noreferrer">Open in new tab</a>
+          <button class="file-preview-close" id="previewCloseBtn" type="button" aria-label="Close preview">✕</button>
         </div>
+      </div>
+      <div class="file-preview-body">
+        <div class="file-preview-status visible" id="previewStatus">Select a file to load its preview.</div>
+        <iframe id="previewFrame" title="File preview"></iframe>
+      </div>
+    </div>
+  </div>
 
    <!-- File Selection Dropdown
         <div class="file-selection-dropdown" id="fileSelectionDropdown">
@@ -184,79 +338,52 @@
         <!-- Left Side: Upload Area -->
 
 
-        <!-- End Left Section -->
-      </div>
-      <!-- Right Side: Quick Actions & Statistics -->
-      <div class="right-section">
-        <!-- Quick Actions Box -->
-
-
-        <!-- Statistics Box -->
-        <div class="statistics-box">
-          <div class="stats-header">
-            Statistics
-          </div>
-
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-value" id="fileCount">0</div>
-              <div class="stat-label">
-                <span class="stat-icon"></span>
-                File Count
-              </div>
-            </div>
-
-            <div class="stat-card stat-pending">
-              <div class="stat-value" id="totalSize">0 KB</div>
-              <div class="stat-label">
-                <span class="stat-icon"></span>
-                Total Size
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="quick-actions-box">
- 
-  <h3 class="supported-files-title">Supported File Types</h3>
-  
-<p class="file-types-description">
-  <span class="file-format">PDF</span> 
-  <span class="file-format">DOC</span> 
-  <span class="file-format">DOCX</span> 
-  <span class="file-format">TXT</span> 
-  <span class="file-format">XLSX</span>
-  <span class="file-format">XLSB</span>  <!-- ← Added -->
-  <span class="file-format">CSV</span>
-  <span class="file-format">JSON</span>  <!-- ← Added -->
-  <span class="file-format">PPT</span> 
-  <span class="file-format">PPTX</span> 
-  <span class="file-format">Images</span> 
-  <span class="image-formats">(JPG, PNG, GIF)</span>
-</p>
-    
-    <div class="file-size-divider"></div>
-    
-    <p class="max-size-info">
-      <span class="size-icon">⚠️</span>
-      Max size: <strong>10MB</strong> per file
-    </p>
-          </div>
-        </div>
-      </div>
-      <!-- End Right Section -->
 
 
       <!-- End main-layout -->
     </div>
     <script>
+      const BASE_URL = {{ base_url|tojson }};
+      const CONTENT_PREVIEW_BASE = (typeof BASE_URL === "string" && BASE_URL.length > 0)
+        ? `${BASE_URL.replace(/\/$/, "")}/content`
+        : "";
+
       const uploadArea = document.getElementById("uploadArea");
       const fileInput = document.getElementById("fileInput");
-      const fileList = document.getElementById("fileList");
       const fileItems = document.getElementById("fileItems");
       //const uploadBtn = document.getElementById("uploadBtn");
       const uploadBtn = document.getElementById("uploadFileBtn");
-      const fileCount = document.getElementById("fileCount");
-      const totalSize = document.getElementById("totalSize");
+      // Statistics removed - no longer needed
+      const previewOverlay = document.getElementById("filePreviewOverlay");
+      const previewModal = document.getElementById("filePreviewModal");
+      const previewFrame = document.getElementById("previewFrame");
+      const previewStatus = document.getElementById("previewStatus");
+      const previewFileName = document.getElementById("previewFileName");
+      const previewOpenExternal = document.getElementById("previewOpenExternal");
+      const previewCloseBtn = document.getElementById("previewCloseBtn");
+      const previewDefaultMessage = previewStatus ? previewStatus.textContent : "Select a file to load its preview.";
+      let currentPreviewUrl = "";
+      let previewStatusTimeoutId = null;
+
+      if (previewCloseBtn) {
+        previewCloseBtn.addEventListener("click", closeFilePreview);
+      }
+      if (previewOverlay) {
+        previewOverlay.addEventListener("click", closeFilePreview);
+      }
+      if (previewFrame) {
+        previewFrame.addEventListener("load", () => {
+          if (previewStatus) {
+            previewStatus.classList.remove("visible");
+            previewStatus.textContent = "";
+          }
+        });
+      }
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeFilePreview();
+        }
+      });
 
       let selectedFiles = [];
 // NEW: Variables for sidebar filtering and sorting
@@ -368,13 +495,12 @@
 
       // ==================== FILE SELECTION HANDLERS ====================
 
-      // FIXED: Click to upload - Only trigger when clicking empty area
+      // Click anywhere on upload area to browse files
       uploadArea.addEventListener("click", (e) => {
         // Don't trigger if clicking on interactive elements
         if (
           e.target.closest(".file-item") ||
           e.target.closest(".remove-btn") ||
-          e.target.closest(".browse-btn") ||
           e.target.closest(".file-list") ||
           e.target.closest(".upload-text") ||
           e.target.tagName === "BUTTON" ||
@@ -384,16 +510,6 @@
         }
         fileInput.click();
       });
-
-      // Prevent the browse button from triggering parent click
-      const browseBtnElement = document.querySelector(".browse-btn");
-      if (browseBtnElement) {
-        browseBtnElement.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          fileInput.click();
-        });
-      }
 
       // Drag and drop events
       uploadArea.addEventListener("dragover", (e) => {
@@ -420,7 +536,7 @@
         e.target.value = "";
       });
       function handleFiles(files) {
-        // Define allowed file extensions
+        // Define allowed file extensions - must match Azure backend requirements
         const allowedExtensions = [
           ".pdf",
           ".doc",
@@ -436,7 +552,7 @@
           ".png",
           ".gif",
           ".json",
-          ".xlsb",
+          ".xlsb"
         ];
 
         // Filter files by allowed extensions
@@ -444,6 +560,21 @@
           const fileName = file.name.toLowerCase();
           return allowedExtensions.some((ext) => fileName.endsWith(ext));
         });
+
+        // Check for invalid files
+        const invalidFiles = files.filter((file) => {
+          const fileName = file.name.toLowerCase();
+          return !allowedExtensions.some((ext) => fileName.endsWith(ext));
+        });
+
+        if (invalidFiles.length > 0) {
+          const invalidNames = invalidFiles.map(f => f.name).join(", ");
+          showToast(
+            `Invalid file type(s): ${invalidNames}. Please select supported file types.`,
+            "warning",
+            5000
+          );
+        }
 
         if (validFiles.length === 0) {
           showToast(
@@ -492,41 +623,42 @@
       }
 
       function displayFiles() {
+        const uploadBtn = document.getElementById("uploadFileBtn");
+        const fileItems = document.getElementById("fileItems");
+        const selectedFilesContainer = document.getElementById("selectedFilesContainer");
+        
         if (selectedFiles.length === 0) {
-          fileList.style.display = "none";
-          const uploadBtn = document.getElementById("uploadFileBtn");
-          if (uploadBtn) {
-          uploadBtn.disabled = true;
-          }
+          if (uploadBtn) uploadBtn.disabled = true;
+          if (selectedFilesContainer) selectedFilesContainer.style.display = "none";
           return;
         }
 
-        fileList.style.display = "block";
-        const uploadBtn = document.getElementById("uploadFileBtn");
-        if (uploadBtn) {
-        uploadBtn.disabled = false;
-        }
+        if (uploadBtn) uploadBtn.disabled = false;
+        if (selectedFilesContainer) selectedFilesContainer.style.display = "block";
+        if (!fileItems) return;
+
         fileItems.innerHTML = "";
 
         selectedFiles.forEach((file, index) => {
           const fileItem = document.createElement("div");
-          fileItem.className = "file-item-selected";
+          fileItem.className = "selected-file-item";
 
-          const fileIcon = getFileIcon(file.name);
           const fileSize = formatFileSize(file.size);
+          const fileName = file.name;
 
           fileItem.innerHTML = `
-        <div class="file-info">
-          <div class="file-icon-small">${fileIcon}</div>
-          <div class="file-details">
-            <div class="file-name">${file.name}</div>
-            <div class="file-size">${fileSize}</div>
-          </div>
-        </div>
-        <div class="file-actions">
-          <button class="remove-btn" onclick="removeFile(${index}); event.stopPropagation();">✕</button>
-        </div>
-      `;
+            <div class="selected-file-info">
+              <div class="selected-file-name" title="${fileName}">${fileName}</div>
+              <div class="selected-file-meta">
+                <span class="selected-file-size">${fileSize}</span>
+              </div>
+            </div>
+            <button class="selected-file-remove" onclick="removeFile(${index}); event.stopPropagation();" title="Remove file">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          `;
 
           fileItems.appendChild(fileItem);
         });
@@ -565,19 +697,120 @@
       }
 
       function updateStats() {
-        fileCount.textContent = selectedFiles.length;
-        const total = selectedFiles.reduce((sum, file) => sum + file.size, 0);
-        totalSize.textContent = formatFileSize(total);
+        // Statistics removed - function kept for compatibility but does nothing
       }
 
       function formatFileSize(bytes) {
-        if (bytes === 0) return "0 Bytes";
+        if (!bytes || bytes === 0) return "0 Bytes";
+        if (isNaN(bytes)) return "Unknown size";
         const k = 1024;
         const sizes = ["Bytes", "KB", "MB", "GB"];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return (
           Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
         );
+      }
+
+      function encodeFilePathForUrl(path) {
+        if (!path || typeof path !== "string") {
+          return "";
+        }
+        return path
+          .split("/")
+          .map((segment) => encodeURIComponent(segment))
+          .join("/");
+      }
+
+      function closeFilePreview() {
+        if (previewStatusTimeoutId) {
+          clearTimeout(previewStatusTimeoutId);
+          previewStatusTimeoutId = null;
+        }
+        if (previewModal) {
+          previewModal.classList.remove("open");
+          previewModal.setAttribute("aria-hidden", "true");
+        }
+        if (previewOverlay) {
+          previewOverlay.classList.remove("open");
+        }
+        if (previewFrame) {
+          previewFrame.removeAttribute("src");
+        }
+        if (previewStatus) {
+          previewStatus.textContent = previewDefaultMessage;
+          previewStatus.classList.add("visible");
+        }
+        if (previewFileName) {
+          previewFileName.textContent = "File preview";
+        }
+        if (previewOpenExternal) {
+          previewOpenExternal.removeAttribute("href");
+        }
+        currentPreviewUrl = "";
+        document.body.style.overflow = "";
+      }
+
+      async function openFilePreview(fileInfo) {
+        if (!fileInfo || !fileInfo.filePath) {
+          showToast("Preview is not available for this file.", "warning", 3000);
+          return;
+        }
+
+        if (!CONTENT_PREVIEW_BASE) {
+          showToast("Preview service is not configured.", "error", 4000);
+          return;
+        }
+
+        const safeFileName = fileInfo.fileName || fileInfo.filePath.split("/").pop() || "File preview";
+        const encodedPath = encodeFilePathForUrl(fileInfo.filePath);
+        if (!encodedPath) {
+          showToast("Unable to generate preview path.", "error", 4000);
+          return;
+        }
+
+        const previewUrl = `${CONTENT_PREVIEW_BASE}/${encodedPath}`;
+        currentPreviewUrl = previewUrl;
+
+        if (previewModal) {
+          previewModal.classList.add("open");
+          previewModal.setAttribute("aria-hidden", "false");
+        }
+        if (previewOverlay) {
+          previewOverlay.classList.add("open");
+        }
+        document.body.style.overflow = "hidden";
+
+        if (previewFileName) {
+          previewFileName.textContent = safeFileName;
+        }
+        if (previewOpenExternal) {
+          previewOpenExternal.href = previewUrl;
+        }
+        if (previewStatus) {
+          previewStatus.textContent = "Loading preview...";
+          previewStatus.classList.add("visible");
+        }
+
+        if (previewFrame) {
+          previewFrame.removeAttribute("src");
+          // Small delay gives the status overlay a chance to render
+          setTimeout(() => {
+            if (currentPreviewUrl === previewUrl) {
+              previewFrame.src = previewUrl;
+            }
+          }, 50);
+        }
+
+        if (previewStatusTimeoutId) {
+          clearTimeout(previewStatusTimeoutId);
+        }
+        previewStatusTimeoutId = setTimeout(() => {
+          if (previewStatus && currentPreviewUrl === previewUrl && previewStatus.classList.contains("visible")) {
+            previewStatus.textContent = "Still loading… If the preview does not appear, use \"Open in new tab\".";
+          }
+        }, 6000);
+
+       // showToast(`Opening preview: ${safeFileName}`, "info", 2000);
       }
 
       // ==================== UPLOAD HANDLER WITH INGESTION ====================
@@ -732,8 +965,8 @@
           console.error("❌ Error:", error);
           showToast(`Error: ${error.message}`, "error", 5000);
         } finally {
-          // Re-enable button
-          uploadBtn.disabled = false;
+          // Update button state based on file selection (displayFiles handles this)
+          displayFiles();
           uploadBtn.textContent = " Upload File";
           // Hide global loader
           const globalLoader = document.getElementById("loadingIndicator");
@@ -751,28 +984,27 @@
       const sidebarOverlay = document.getElementById("sidebarOverlay");
       const closeSidebar = document.getElementById("closeSidebar");
 
-      // Toggle sidebar
+      // Toggle sidebar - show sidebar and hide hamburger
       menuToggle.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        sidebarMenu.classList.toggle("active");
-        sidebarOverlay.classList.toggle("active");
+        sidebarMenu.classList.add("active");
+        menuToggle.style.display = "none"; // Hide hamburger when sidebar opens
+        // Don't show overlay - keep main screen active
       });
 
-      // Close sidebar when clicking close button
+      // Close sidebar when clicking close button - hide sidebar and show hamburger
       closeSidebar.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         sidebarMenu.classList.remove("active");
-        sidebarOverlay.classList.remove("active");
-      });
-
-      // Close sidebar when clicking overlay
-      sidebarOverlay.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        sidebarMenu.classList.remove("active");
-        sidebarOverlay.classList.remove("active");
+        menuToggle.style.display = "block"; // Show hamburger when sidebar closes
+        // Reset sidebar width to default when closing
+        setTimeout(() => {
+          if (sidebarMenu) {
+            sidebarMenu.style.width = '';
+          }
+        }, 100);
       });
 
       // Optional: Close sidebar on file item click
@@ -794,11 +1026,37 @@
       async function fetchAndDisplayFiles() {
         try {
           const loader = document.getElementById("loadingIndicator");
+          const sidebarContent = document.getElementById("sidebarContent");
+          
           if (loader) loader.style.display = "flex";
-          const response = await fetch("/api/get-files");
+          if (sidebarContent) {
+            sidebarContent.innerHTML = '<p class="sidebar-loading">Loading files...</p>';
+          }
+          
+          // Increase timeout for the fetch request
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 35000); // 35 second timeout
+          
+          let response;
+          try {
+            response = await fetch("/api/get-files", {
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+              throw new Error('Request timed out. The backend service is taking too long to respond.');
+            }
+            throw fetchError;
+          }
 
           if (!response.ok) {
-            throw new Error(`Failed to fetch files: ${response.status}`);
+            const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            if (response.status === 504) {
+              throw new Error('Backend service timed out. Please try again in a moment.');
+            }
+            throw new Error(errorData.message || `Failed to fetch files: ${response.status} ${response.statusText}`);
           }
 
           const data = await response.json();
@@ -813,14 +1071,36 @@
           filesByEmail = data.files_by_email || {};
 
           console.log(
-            `Loaded ${data.total_files} files from ${data.total_emails} email(s)`
+            `Loaded ${data.total_files || 0} files from ${data.total_emails || 0} email(s)`
           );
 
           // Display files in sidebar
-          displayFilesInSidebar();
+          try {
+            displayFilesInSidebar();
+          } catch (error) {
+            console.error("Error displaying files in sidebar:", error);
+            const sidebarContent = document.getElementById("sidebarContent");
+            if (sidebarContent) {
+              sidebarContent.innerHTML = 
+                `<p style="text-align: center; color: #dc2626; padding: 20px;">Error displaying files: ${error.message}</p>`;
+            }
+          }
         } catch (error) {
           console.error("Error fetching files:", error);
-          showToast("Failed to load files from server", "error");
+          const sidebarContent = document.getElementById("sidebarContent");
+          if (sidebarContent) {
+            let errorMessage = error.message || "Unknown error occurred";
+            if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
+              errorMessage = "Backend service is taking too long to respond. Please try again in a moment.";
+            }
+            sidebarContent.innerHTML = 
+              `<div style="text-align: center; color: #dc2626; padding: 20px;">
+                <p style="font-weight: 600; margin-bottom: 8px;">Error loading files</p>
+                <p style="font-size: 13px; color: #6b7280;">${errorMessage}</p>
+                <button onclick="fetchAndDisplayFiles()" style="margin-top: 12px; padding: 8px 16px; background: #3598db; color: white; border: none; border-radius: 6px; cursor: pointer;">Retry</button>
+              </div>`;
+          }
+          showToast(`Failed to load files: ${error.message}`, "error", 5000);
         } finally {
           const loader = document.getElementById("loadingIndicator");
           if (loader) loader.style.display = "none";
@@ -829,53 +1109,74 @@
 
 
 function displayFilesInSidebar() {
-  const sidebarContent = document.getElementById("sidebarContent");
-  
-  if (!sidebarContent) {
-    console.error("Sidebar content element not found");
-    return;
-  }
+  try {
+    const sidebarContent = document.getElementById("sidebarContent");
+    
+    if (!sidebarContent) {
+      console.error("Sidebar content element not found");
+      return;
+    }
 
-  // Clear existing content
-  sidebarContent.innerHTML = "";
+    // Clear existing content
+    sidebarContent.innerHTML = "";
 
-  // Check if there are any files
-  if (!filesByEmail || Object.keys(filesByEmail).length === 0) {
-    sidebarContent.innerHTML =
-      '<p style="text-align: center; color: #6b7280; padding: 20px;">No files found</p>';
-    return;
-  }
+    // Check if there are any files
+    if (!filesByEmail || Object.keys(filesByEmail).length === 0) {
+      sidebarContent.innerHTML =
+        '<p style="text-align: center; color: #6b7280; padding: 20px;">No files found</p>';
+      return;
+    }
 
-  // Flatten all files from all emails into a single list with metadata
-  allFilesData = [];
-  Object.keys(filesByEmail).forEach((email) => {
-    const group = filesByEmail[email];
-    const filesArray = Array.isArray(group) ? group : (group && Array.isArray(group.files) ? group.files : []);
-    filesArray.forEach((file) => {
-      allFilesData.push({
-        ...file,
-        email: email // Store email for reference
+    // Flatten all files from all emails into a single list with metadata
+    allFilesData = [];
+    Object.keys(filesByEmail).forEach((email) => {
+      const group = filesByEmail[email];
+      const filesArray = Array.isArray(group) ? group : (group && Array.isArray(group.files) ? group.files : []);
+      filesArray.forEach((file) => {
+        allFilesData.push({
+          ...file,
+          email: email // Store email for reference
+        });
       });
     });
-  });
 
-  // Apply initial sorting
-  sortAndDisplayFiles();
+    console.log(`Processed ${allFilesData.length} files for display`);
+
+    // Apply initial sorting
+    sortAndDisplayFiles();
+  } catch (error) {
+    console.error("Error in displayFilesInSidebar:", error);
+    const sidebarContent = document.getElementById("sidebarContent");
+    if (sidebarContent) {
+      sidebarContent.innerHTML = 
+        `<p style="text-align: center; color: #dc2626; padding: 20px;">Error: ${error.message}</p>`;
+    }
+  }
 }
 
 // NEW FUNCTION: Sort and display files
 function sortAndDisplayFiles() {
   const sidebarContent = document.getElementById("sidebarContent");
   
-  if (!sidebarContent || allFilesData.length === 0) return;
+  if (!sidebarContent) {
+    console.error("Sidebar content element not found");
+    return;
+  }
+  
+  if (!allFilesData || allFilesData.length === 0) {
+    sidebarContent.innerHTML =
+      '<p style="text-align: center; color: #6b7280; padding: 20px;">No files found</p>';
+    return;
+  }
 
   // Get search query
   const searchQuery = document.getElementById("sidebarSearchInput")?.value.toLowerCase() || '';
   
   // Filter files based on search
-  let filteredFiles = allFilesData.filter(file => 
-    file.fileName.toLowerCase().includes(searchQuery)
-  );
+  let filteredFiles = allFilesData.filter(file => {
+    if (!file || !file.fileName) return false;
+    return file.fileName.toLowerCase().includes(searchQuery);
+  });
 
   // Sort files based on current sort order
   filteredFiles.sort((a, b) => {
@@ -905,44 +1206,78 @@ function sortAndDisplayFiles() {
 
   // Display filtered and sorted files
   filteredFiles.forEach((file) => {
-    const fileItem = document.createElement("div");
-    fileItem.className = "file-item";
-    
-    // Format date for display
-    const lastModified = file.lastModified 
-      ? new Date(file.lastModified).toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      : 'Unknown date';
-    
-    fileItem.innerHTML = `
-      <div class="file-item-main">
-        <span class="file-icon">📘</span>
-        <div class="file-info">
-          <span class="file-name file-name-center" title="${file.fileName}">${file.fileName}</span>
-          <span class="file-date">${lastModified}</span>
+    try {
+      // Validate file object has required properties
+      if (!file || !file.fileName) {
+        console.warn("Invalid file object:", file);
+        return;
+      }
+      
+      const fileItem = document.createElement("div");
+      fileItem.className = "file-item";
+      
+      // Format date for display
+      const lastModified = file.lastModified 
+        ? new Date(file.lastModified).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : 'Unknown date';
+      
+      // Escape HTML to prevent XSS
+      const fileName = file.fileName || 'Unknown file';
+      const filePath = file.fullPath || '';
+      let fileSize = 'Unknown size';
+      try {
+        if (file.size !== undefined && file.size !== null) {
+          fileSize = formatFileSize(file.size);
+        }
+      } catch (e) {
+        console.warn('Error formatting file size:', e);
+        fileSize = 'Unknown size';
+      }
+      
+      fileItem.innerHTML = `
+        <div class="file-item-main">
+          <div class="file-info">
+            <span class="file-name" title="${fileName.replace(/"/g, '&quot;')}">${fileName}</span>
+            <div class="file-meta">
+              <span class="file-date">${lastModified}</span>
+              <span class="file-size-badge">${fileSize}</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <button class="file-close-btn" data-filepath="${file.fullPath}">✕</button>
-    `;
+        <button class="file-close-btn" data-filepath="${filePath.replace(/"/g, '&quot;')}">✕</button>
+      `;
 
-    // Add click event for file selection
-    fileItem.querySelector(".file-item-main").addEventListener("click", () => {
-      console.log("Selected file:", file.fullPath);
-      showToast(`Selected: ${file.fileName}`, "info", 2000);
-    });
+      // Add click event for file selection
+      const fileItemMain = fileItem.querySelector(".file-item-main");
+      if (fileItemMain) {
+        fileItemMain.addEventListener("click", () => {
+          openFilePreview({
+            fileName: fileName,
+            filePath: filePath,
+            contentType: file.contentType || file.content_type || ''
+          });
+        });
+      }
 
-    // Add click event for delete button
-    fileItem.querySelector(".file-close-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      deleteFile(file.fullPath, fileItem);
-    });
+      // Add click event for delete button
+      const closeBtn = fileItem.querySelector(".file-close-btn");
+      if (closeBtn && filePath) {
+        closeBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteFile(filePath, fileItem);
+        });
+      }
 
-    sidebarContent.appendChild(fileItem);
+      sidebarContent.appendChild(fileItem);
+    } catch (error) {
+      console.error("Error creating file item:", error, file);
+    }
   });
 }
 
@@ -1137,9 +1472,23 @@ function sortAndDisplayFiles() {
 
       // Load files when page loads
       window.addEventListener('DOMContentLoaded', () => {
-        console.log('Loading files into sidebar and dropdown...');
-        fetchAndDisplayFiles();
-        //loadFilesIntoDropdown();
+        console.log('Page loaded, initializing...');
+        
+        // Ensure sidebar is visible by default and hamburger is hidden
+        const sidebarMenu = document.getElementById('sidebarMenu');
+        const menuToggle = document.getElementById('menuToggle');
+        if (sidebarMenu && menuToggle) {
+          sidebarMenu.classList.add('active');
+          menuToggle.style.display = 'none';
+        }
+        
+        // Load files into sidebar
+        console.log('Loading files into sidebar...');
+        try {
+          fetchAndDisplayFiles();
+        } catch (error) {
+          console.error('Error loading files on page load:', error);
+        }
       });
 
 
@@ -1172,14 +1521,112 @@ window.addEventListener('load', function() {
 
     </script>
     <script>
-      // Inject minimal styles to center file names in the sidebar list
+      // ==================== SIDEBAR RESIZE FUNCTIONALITY ====================
       (function() {
-        const style = document.createElement('style');
-        style.textContent = `
-          .file-item-selected .file-info { display: flex; flex-direction: row; align-items: center; }
-          .file-item .file-name.file-name-center { display: block; width: 100%; text-align: center; }
-        `;
-        document.head.appendChild(style);
+        const sidebar = document.getElementById('sidebarMenu');
+        const resizeHandle = document.getElementById('sidebarResizeHandle');
+        const DEFAULT_WIDTH = 320; // Default width from CSS
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        // Function to reset sidebar width to default
+        function resetSidebarWidth() {
+          if (sidebar) {
+            sidebar.style.width = DEFAULT_WIDTH + 'px';
+          }
+        }
+
+        // Function to save sidebar width to localStorage
+        function saveSidebarWidth(width) {
+          try {
+            localStorage.setItem('sidebarWidth', width.toString());
+          } catch (e) {
+            console.warn('Could not save sidebar width:', e);
+          }
+        }
+
+        // Function to load saved sidebar width
+        function loadSidebarWidth() {
+          try {
+            const savedWidth = localStorage.getItem('sidebarWidth');
+            if (savedWidth) {
+              const width = parseInt(savedWidth, 10);
+              if (width >= 250 && width <= 600 && sidebar) {
+                sidebar.style.width = width + 'px';
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('Could not load sidebar width:', e);
+          }
+          // Reset to default if no valid saved width
+          resetSidebarWidth();
+        }
+
+        // Load saved width when sidebar opens (via hamburger menu)
+        const menuToggle = document.getElementById('menuToggle');
+        const closeSidebar = document.getElementById('closeSidebar');
+        
+        if (menuToggle && sidebar) {
+          menuToggle.addEventListener('click', () => {
+            // Small delay to ensure sidebar is opening
+            setTimeout(() => {
+              if (sidebar.classList.contains('active')) {
+                loadSidebarWidth();
+              }
+            }, 10);
+          });
+        }
+        
+        // Load saved width on page load if sidebar is open by default
+        window.addEventListener('DOMContentLoaded', () => {
+          if (sidebar && sidebar.classList.contains('active')) {
+            loadSidebarWidth();
+          }
+        });
+
+        // Note: Width reset is handled in the main close button handler above
+        // This section only handles saving the width when resizing
+
+        if (resizeHandle && sidebar) {
+          resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = sidebar.offsetWidth;
+            sidebar.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+          });
+
+          document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const diff = e.clientX - startX;
+            const newWidth = startWidth + diff;
+            const minWidth = 250;
+            const maxWidth = 600;
+            
+            if (newWidth >= minWidth && newWidth <= maxWidth) {
+              sidebar.style.width = newWidth + 'px';
+            }
+          });
+
+          document.addEventListener('mouseup', () => {
+            if (isResizing) {
+              isResizing = false;
+              sidebar.classList.remove('resizing');
+              document.body.style.cursor = '';
+              document.body.style.userSelect = '';
+              
+              // Save the new width
+              if (sidebar.offsetWidth !== DEFAULT_WIDTH) {
+                saveSidebarWidth(sidebar.offsetWidth);
+              }
+            }
+          });
+        }
       })();
     </script>
 </body>

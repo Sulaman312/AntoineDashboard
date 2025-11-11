@@ -13,13 +13,14 @@
 <body>
 <header>
   <div class="logo">
-    <span class="brand">petcare</span>
-    <span class="brand-subtitle">PET SERVICES</span>
+    <span class="brand">Memoria</span>
+    <span class="brand-subtitle">Your company safe & AI our files </span>
   </div>
 
   <!-- Navigation Tabs (Desktop) -->
   <nav class="header-nav">
     <a href="{{ url_for('dashboard') }}" class="nav-tab">Dashboard</a>
+    <a href="{{ url_for('chats') }}" class="nav-tab">Chats</a>
     <a href="{{ url_for('upload_file') }}" class="nav-tab">Upload File</a>
   </nav>
 
@@ -79,6 +80,10 @@
       <a href="{{ url_for('dashboard') }}" class="mobile-nav-link">
         <span class="mobile-nav-icon">📊</span>
         Dashboard
+      </a>
+      <a href="{{ url_for('chats') }}" class="mobile-nav-link">
+        <span class="mobile-nav-icon">💬</span>
+        Chats
       </a>
       <a href="{{ url_for('upload_file') }}" class="mobile-nav-link">
         <span class="mobile-nav-icon">📤</span>
