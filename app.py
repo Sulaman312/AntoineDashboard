@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from functools import wraps
+from urllib.parse import urlparse, urljoin
 import json
 from datetime import datetime, timedelta
 import pandas as pd
@@ -16,6 +18,37 @@ app.permanent_session_lifetime = timedelta(days=1)
 
 # Azure backend base URL - Global configuration
 BASE_URL = "https://capps-backend-ooxig22w5exq6.calmpebble-4f694259.westus.azurecontainerapps.io"
+
+
+def is_safe_url(target: str) -> bool:
+    """
+    Ensure the target URL is safe to redirect to (same host and http/https scheme)
+    """
+    if not target:
+        return False
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return (
+        test_url.scheme in ("http", "https")
+        and ref_url.netloc == test_url.netloc
+    )
+
+
+def login_required(view_func):
+    """
+    Decorator to enforce authentication for view functions.
+    Redirects unauthenticated users to the login page and preserves the
+    original destination (when safe) using the `next` query parameter.
+    """
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        if 'email' not in session:
+            next_url = request.full_path if request.method in ('GET', 'HEAD') else ''
+            if not is_safe_url(next_url):
+                next_url = ''
+            return redirect(url_for('login', next=next_url or None))
+        return view_func(*args, **kwargs)
+    return wrapped_view
 
 # MongoDB connection setup
 def get_mongo_connection(collection_name='VincentBotReplicaWithVoice'):
@@ -312,9 +345,12 @@ def dashboard():
 # Login page
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    next_url = request.args.get('next', '')
+
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+        next_url = request.form.get('next', next_url)
 
         users_collection = get_mongo_connection('users')
         user = users_collection.find_one({'email': email, 'password': password})
@@ -324,11 +360,13 @@ def login():
             session['email'] = email
             session['role'] = user.get('role', 'member')  # Get role from database, default to 'member'
             print(f"User {email} logged in with role: {session['role']}")
+            if next_url and is_safe_url(next_url):
+                return redirect(next_url)
             return redirect(url_for('dashboard'))
         else:
-            return render_template('login.html', error='Invalid credentials')
+            return render_template('login.html', error='Invalid credentials', next=next_url)
 
-    return render_template('login.html')
+    return render_template('login.html', next=next_url)
 
 @app.route('/logout')
 def logout():
@@ -410,6 +448,7 @@ def get_filtered_data():
     return jsonify(response)
 
 @app.route('/chats')
+@login_required
 def chats():
     return render_template('chats.html')
 
@@ -661,8 +700,9 @@ def get_user_info():
     })
     
 @app.route('/upload')
+@login_required
 def upload_file():
-    return render_template('upload.html', base_url=BASE_URL)
+    return render_template('upload.html')
 
 
 
@@ -692,6 +732,12 @@ def allowed_file(filename):
 def handle_upload():
     """Handle file upload and forward to Azure service"""
     try:
+        if 'email' not in session:
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+
         # Check if files are in the request
         if 'files' not in request.files:
             return jsonify({
@@ -904,6 +950,12 @@ def handle_upload():
 def ingest_files():
     """Handle file ingestion after upload"""
     try:
+        if 'email' not in session:
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+
         # Get data from request body
         data = request.get_json()
         
@@ -1304,6 +1356,106 @@ def delete_file():
         else:
             return jsonify({'error': 'Failed to delete file from backend', 'details': response.text}), response.status_code
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/content/<path:file_path>', methods=['GET'])
+def proxy_content_preview(file_path):
+    """
+    Proxy endpoint to fetch content from backend and inject CSS for white background
+    This ensures we can style the content even if it's cross-origin
+    """
+    try:
+        if 'email' not in session:
+            next_url = request.full_path if request.method in ('GET', 'HEAD') else ''
+            if not is_safe_url(next_url):
+                next_url = ''
+            return redirect(url_for('login', next=next_url or None))
+
+        # Get theme parameter (default to 'light')
+        theme = request.args.get('theme', 'light')
+        
+        # Construct backend URL
+        backend_url = f"{BASE_URL}/content/{file_path}"
+        if theme:
+            separator = '&' if '?' in backend_url else '?'
+            backend_url = f"{backend_url}{separator}theme={theme}"
+        
+        # Fetch content from backend
+        response = requests.get(backend_url, timeout=30)
+        content_type = response.headers.get('Content-Type', '')
+        excluded_headers = {'content-encoding', 'transfer-encoding', 'connection', 'content-length'}
+
+        # Helper to copy headers to Flask response
+        def apply_headers(flask_response):
+            for header, value in response.headers.items():
+                header_lower = header.lower()
+                if header_lower in excluded_headers:
+                    continue
+                if header_lower == 'content-type':
+                    flask_response.headers['Content-Type'] = value
+                else:
+                    flask_response.headers[header] = value
+            return flask_response
+
+        # If the response is not successful, proxy it as-is (no CSS injection)
+        if response.status_code != 200:
+            flask_response = Response(response.content, status=response.status_code)
+            return apply_headers(flask_response)
+        
+        # If it's HTML/text content, inject CSS for white background
+        if 'text/html' in content_type or content_type.startswith('text/'):
+            content = response.text
+            css_injection = """
+<style id="preview-override-styles">
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  body * {
+    background-color: transparent !important;
+  }
+  pre, code {
+    background-color: #f8f9fa !important;
+    color: #000000 !important;
+    border: 1px solid #e9ecef !important;
+    padding: 12px !important;
+    border-radius: 4px !important;
+  }
+  .json-viewer, .json-container, [class*="json"], [id*="json"] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  div, section, article, main {
+    background-color: transparent !important;
+  }
+  /* Override any dark theme classes */
+  [class*="dark"], [class*="black"], [class*="night"] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+</style>
+"""
+
+            if '</head>' in content:
+                content = content.replace('</head>', css_injection + '</head>')
+            elif '<body' in content:
+                content = content.replace('<body', css_injection + '<body')
+            else:
+                content = css_injection + content
+
+            flask_response = Response(content, status=200)
+            return apply_headers(flask_response)
+
+        # For binary or other content types (e.g., PDFs), proxy the content as-is
+        flask_response = Response(response.content, status=200)
+        return apply_headers(flask_response)
+        
+    except requests.exceptions.Timeout:
+        return jsonify({'error': 'Backend service request timed out'}), 504
+    except requests.exceptions.ConnectionError:
+        return jsonify({'error': 'Could not connect to backend service'}), 503
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
