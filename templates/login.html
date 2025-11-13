@@ -331,14 +331,15 @@
 <body>
   <div class="login-container">
     <div class="brand-logo">
-      <div class="brand">petcare</div>
-      <div class="brand-subtitle">PET SERVICES</div>
+      <div class="brand">Memoria</div>
+      <div class="brand-subtitle">Your company safe & AI our files</div>
     </div>
     
     <h2>Welcome Back</h2>
     
     <form method="POST" onsubmit="return validateForm()" id="loginForm">
-      <div class="error-message" id="errorMessage" style="display: none;">{{ error }}</div>
+      <input type="hidden" name="next" value="{{ next | default('') }}">
+      <div class="error-message" id="errorMessage" style="{{ 'display: block;' if error else 'display: none;' }}">{{ error or '' }}</div>
       
       <div class="form-group">
         <label for="email">Email Address</label>

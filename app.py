@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from functools import wraps
+from urllib.parse import urlparse, urljoin
 import json
 from datetime import datetime, timedelta
 import pandas as pd
@@ -7,21 +9,125 @@ from pymongo import MongoClient
 import pymongo
 from bson import ObjectId
 import os
+import logging
+import re
 import requests  # ✅ ADD THIS IMPORT
 from werkzeug.utils import secure_filename  # ✅ ADD THIS IMPORT
 import mimetypes
+import io
+try:
+    import openai
+except ImportError:
+    openai = None
+from dotenv import load_dotenv
+
+try:
+    from openai import OpenAI as OpenAIClient
+except ImportError:
+    OpenAIClient = None
+
+# Text extraction libraries
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
+
+try:
+    from docx import Document as DocxDocument
+except ImportError:
+    DocxDocument = None
+
+load_dotenv()
+
+LOG_LEVEL_NAME = os.getenv('APP_LOG_LEVEL', 'INFO').upper()
+LOG_LEVEL = getattr(logging, LOG_LEVEL_NAME, logging.INFO)
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+)
+logger = logging.getLogger('antoine_dashboard')
+
 app = Flask(__name__)
-app.secret_key = 'your-secret-key'  # already present
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-me-in-env')
 app.permanent_session_lifetime = timedelta(days=1)
+
+MONGODB_URI = os.getenv(
+    'MONGODB_URI',
+    "mongodb+srv://userawais1:awais645@cluster0.fcqph.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+)
+MONGODB_DB_NAME = os.getenv('MONGODB_DB_NAME', 'chat_history')
+DEFAULT_MONGO_COLLECTION = os.getenv('MONGODB_DEFAULT_COLLECTION', 'VincentBotReplicaWithVoice')
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_SUMMARY_MODEL = os.getenv('OPENAI_SUMMARY_MODEL', 'gpt-4o-mini')
+
+if OPENAI_API_KEY and (openai is not None or OpenAIClient is not None):
+    if OpenAIClient:
+        _openai_client = OpenAIClient(api_key=OPENAI_API_KEY)
+    else:
+        _openai_client = None
+        if openai:
+            openai.api_key = OPENAI_API_KEY
+else:
+    _openai_client = None
+
+SUMMARY_PLACEHOLDER = "Summary not available."
+TEXT_SUMMARY_EXTENSIONS = {
+    'txt', 'md', 'csv', 'json', 'xml', 'py', 'js', 'ts', 'tsx', 'html', 'htm',
+    'css', 'log'
+}
+MAX_SUMMARY_INPUT_CHARS = 6000
 
 # Azure backend base URL - Global configuration
 BASE_URL = "https://capps-backend-ooxig22w5exq6.calmpebble-4f694259.westus.azurecontainerapps.io"
 
+
+def is_safe_url(target: str) -> bool:
+    """
+    Ensure the target URL is safe to redirect to (same host and http/https scheme)
+    """
+    if not target:
+        return False
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return (
+        test_url.scheme in ("http", "https")
+        and ref_url.netloc == test_url.netloc
+    )
+
+
+def login_required(view_func):
+    """
+    Decorator to enforce authentication for view functions.
+    Redirects unauthenticated users to the login page and preserves the
+    original destination (when safe) using the `next` query parameter.
+    """
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        if 'email' not in session:
+            next_url = request.full_path if request.method in ('GET', 'HEAD') else ''
+            if not is_safe_url(next_url):
+                next_url = ''
+            return redirect(url_for('login', next=next_url or None))
+        return view_func(*args, **kwargs)
+    return wrapped_view
+
 # MongoDB connection setup
-def get_mongo_connection(collection_name='VincentBotReplicaWithVoice'):
-    mongo_uri = "mongodb+srv://userawais1:awais645@cluster0.fcqph.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-    client = MongoClient(mongo_uri)
-    db = client["chat_history"]
+_mongo_client = None
+
+
+def get_mongo_client():
+    global _mongo_client
+    if _mongo_client is None:
+        if not MONGODB_URI:
+            raise RuntimeError("MONGODB_URI environment variable is not set.")
+        _mongo_client = MongoClient(MONGODB_URI)
+    return _mongo_client
+
+
+def get_mongo_connection(collection_name=DEFAULT_MONGO_COLLECTION):
+    client = get_mongo_client()
+    db = client[MONGODB_DB_NAME]
     collection = db[collection_name]
     return collection
 
@@ -312,9 +418,12 @@ def dashboard():
 # Login page
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    next_url = request.args.get('next', '')
+
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+        next_url = request.form.get('next', next_url)
 
         users_collection = get_mongo_connection('users')
         user = users_collection.find_one({'email': email, 'password': password})
@@ -324,11 +433,13 @@ def login():
             session['email'] = email
             session['role'] = user.get('role', 'member')  # Get role from database, default to 'member'
             print(f"User {email} logged in with role: {session['role']}")
+            if next_url and is_safe_url(next_url):
+                return redirect(next_url)
             return redirect(url_for('dashboard'))
         else:
-            return render_template('login.html', error='Invalid credentials')
+            return render_template('login.html', error='Invalid credentials', next=next_url)
 
-    return render_template('login.html')
+    return render_template('login.html', next=next_url)
 
 @app.route('/logout')
 def logout():
@@ -410,6 +521,7 @@ def get_filtered_data():
     return jsonify(response)
 
 @app.route('/chats')
+@login_required
 def chats():
     return render_template('chats.html')
 
@@ -661,8 +773,9 @@ def get_user_info():
     })
     
 @app.route('/upload')
+@login_required
 def upload_file():
-    return render_template('upload.html')   
+    return render_template('upload.html')
 
 
 
@@ -683,6 +796,728 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def is_text_like_file(filename, content_type=None):
+    if not filename:
+        return False
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext in TEXT_SUMMARY_EXTENSIONS:
+        return True
+    if content_type:
+        content_type = content_type.lower()
+        if content_type.startswith('text/'):
+            return True
+        if content_type in ('application/json', 'application/xml'):
+            return True
+    return False
+
+
+def extract_text_from_file(filename, file_bytes, content_type=None):
+    """
+    Extract text from various file types (PDF, DOCX, TXT, CSV, Excel, etc.)
+    Returns extracted text or empty string if extraction fails
+    """
+    if not file_bytes or not filename:
+        return ''
+    
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    
+    try:
+        # PDF files
+        if ext == 'pdf' and PyPDF2:
+            try:
+                pdf_file = io.BytesIO(file_bytes)
+                pdf_reader = PyPDF2.PdfReader(pdf_file)
+                text_parts = []
+                # Limit to first 50 pages to avoid processing huge files
+                max_pages = min(50, len(pdf_reader.pages))
+                for page_num in range(max_pages):
+                    page = pdf_reader.pages[page_num]
+                    text_parts.append(page.extract_text())
+                extracted_text = '\n'.join(text_parts)
+                if extracted_text.strip():
+                    print(f"✅ Extracted {len(extracted_text)} characters from PDF: {filename}")
+                    return extracted_text.strip()
+            except Exception as e:
+                print(f"⚠️ PDF extraction failed for {filename}: {e}")
+        
+        # DOCX files
+        elif ext == 'docx' and DocxDocument:
+            try:
+                docx_file = io.BytesIO(file_bytes)
+                doc = DocxDocument(docx_file)
+                text_parts = []
+                for paragraph in doc.paragraphs:
+                    if paragraph.text.strip():
+                        text_parts.append(paragraph.text)
+                # Also extract text from tables
+                for table in doc.tables:
+                    for row in table.rows:
+                        for cell in row.cells:
+                            if cell.text.strip():
+                                text_parts.append(cell.text)
+                extracted_text = '\n'.join(text_parts)
+                if extracted_text.strip():
+                    print(f"✅ Extracted {len(extracted_text)} characters from DOCX: {filename}")
+                    return extracted_text.strip()
+            except Exception as e:
+                print(f"⚠️ DOCX extraction failed for {filename}: {e}")
+        
+        # Excel files (XLSX, XLSB)
+        elif ext in ('xlsx', 'xlsb'):
+            try:
+                excel_file = io.BytesIO(file_bytes)
+                # Read all sheets
+                df = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl')
+                text_parts = []
+                for sheet_name, sheet_df in df.items():
+                    # Convert DataFrame to text representation
+                    text_parts.append(f"Sheet: {sheet_name}")
+                    text_parts.append(sheet_df.to_string())
+                extracted_text = '\n'.join(text_parts)
+                if extracted_text.strip():
+                    print(f"✅ Extracted {len(extracted_text)} characters from Excel: {filename}")
+                    return extracted_text.strip()
+            except Exception as e:
+                print(f"⚠️ Excel extraction failed for {filename}: {e}")
+        
+        # CSV files
+        elif ext == 'csv':
+            try:
+                csv_file = io.BytesIO(file_bytes)
+                df = pd.read_csv(csv_file, encoding='utf-8', errors='ignore')
+                extracted_text = df.to_string()
+                if extracted_text.strip():
+                    print(f"✅ Extracted {len(extracted_text)} characters from CSV: {filename}")
+                    return extracted_text.strip()
+            except Exception as e:
+                print(f"⚠️ CSV extraction failed for {filename}: {e}")
+        
+        # JSON files
+        elif ext == 'json':
+            try:
+                json_data = json.loads(file_bytes.decode('utf-8', errors='ignore'))
+                extracted_text = json.dumps(json_data, indent=2, ensure_ascii=False)
+                if extracted_text.strip():
+                    print(f"✅ Extracted {len(extracted_text)} characters from JSON: {filename}")
+                    return extracted_text.strip()
+            except Exception as e:
+                print(f"⚠️ JSON extraction failed for {filename}: {e}")
+        
+        # Plain text files (TXT, MD, etc.)
+        elif ext in TEXT_SUMMARY_EXTENSIONS or (content_type and content_type.startswith('text/')):
+            try:
+                # Try UTF-8 first, then fallback to other encodings
+                for encoding in ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']:
+                    try:
+                        extracted_text = file_bytes.decode(encoding, errors='ignore')
+                        if extracted_text.strip():
+                            print(f"✅ Extracted {len(extracted_text)} characters from text file: {filename}")
+                            return extracted_text.strip()
+                    except:
+                        continue
+            except Exception as e:
+                print(f"⚠️ Text extraction failed for {filename}: {e}")
+        
+        # Fallback: try to decode as text
+        try:
+            sample = file_bytes[:500_000]  # Limit to first ~500KB
+            extracted_text = sample.decode('utf-8', errors='ignore')
+            if extracted_text.strip() and len(extracted_text.strip()) > 50:
+                print(f"✅ Extracted {len(extracted_text)} characters using fallback method: {filename}")
+                return extracted_text.strip()
+        except:
+            pass
+        
+        print(f"⚠️ Could not extract text from {filename} (unsupported or binary file)")
+        return ''
+        
+    except Exception as e:
+        print(f"❌ Error extracting text from {filename}: {e}")
+        import traceback
+        traceback.print_exc()
+        return ''
+
+
+def extract_text_for_summary(file_bytes):
+    """Legacy function - kept for backward compatibility"""
+    if not file_bytes:
+        return ''
+    try:
+        sample = file_bytes[:200_000]  # Limit to first ~200KB
+        text = sample.decode('utf-8', errors='ignore')
+        return text.strip()
+    except Exception as exc:
+        print(f"Failed to decode file content for summary: {exc}")
+        return ''
+
+
+AUTHOR_PATTERNS = [
+    re.compile(r'\b(?:author|written by|prepared by|created by)\b[:\-]?\s*(?P<name>.+)', re.IGNORECASE),
+    re.compile(r'^\s*by\s+(?P<name>.+)', re.IGNORECASE),
+]
+
+DATE_PATTERNS = [
+    re.compile(r'\b\d{4}-\d{1,2}-\d{1,2}\b'),
+    re.compile(r'\b\d{1,2}/\d{1,2}/\d{4}\b'),
+    re.compile(r'\b\d{1,2}-\d{1,2}-\d{4}\b'),
+    re.compile(r'\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
+               r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+'
+               r'\d{1,2},?\s+\d{4}\b', re.IGNORECASE),
+    re.compile(r'\b\d{1,2}\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
+               r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4}\b',
+               re.IGNORECASE),
+    re.compile(r'\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
+               r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4}\b',
+               re.IGNORECASE),
+]
+
+
+def extract_metadata_from_text(text):
+    """
+    Attempt to extract publish date and author name from free-form document text.
+    Returns a tuple of (publish_date, author_name) where either value may be None.
+    """
+    if not text:
+        return None, None
+
+    publish_date = None
+    author_name = None
+
+    # Limit processing to avoid scanning entire large documents repeatedly
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    limited_lines = lines[:200]  # Only inspect first 200 non-empty lines
+
+    for line in limited_lines:
+        if not author_name:
+            for pattern in AUTHOR_PATTERNS:
+                match = pattern.search(line)
+                if match:
+                    candidate = match.group('name').strip(" :-\t")
+                    candidate = re.split(r'[|,;]|\s{2,}', candidate)[0].strip()
+                    if candidate and candidate.lower() not in ('unknown', 'n/a'):
+                        author_name = candidate
+                        logger.debug("Extracted author from line '%s': %s", line, author_name)
+                        break
+
+        if not publish_date:
+            for pattern in DATE_PATTERNS:
+                match = pattern.search(line)
+                if match:
+                    candidate = match.group(0).strip(" :-\t")
+                    if candidate:
+                        publish_date = candidate
+                        logger.debug("Extracted publish date from line '%s': %s", line, publish_date)
+                        break
+
+        if author_name and publish_date:
+            break
+
+    # If publish date still not found, search entire text for any date pattern
+    if not publish_date:
+        for pattern in DATE_PATTERNS:
+            match = pattern.search(text)
+            if match:
+                publish_date = match.group(0).strip()
+                logger.debug("Extracted publish date from document body: %s", publish_date)
+                break
+
+    return publish_date, author_name
+
+
+def generate_file_summary(filename, file_bytes=None, content_type=None, extracted_text=None):
+    """
+    Generate a summary for uploaded files using OpenAI
+    
+    Args:
+        filename: Name of the file
+        file_bytes: File content as bytes (optional if extracted_text is provided)
+        content_type: MIME type of the file (optional)
+        extracted_text: Pre-extracted text from the file (optional, avoids re-extraction)
+    """
+    if not OPENAI_API_KEY:
+        print(f"⚠️ OpenAI API key not set, skipping summary for {filename}")
+        return None
+
+    # Use provided extracted text or extract from file_bytes
+    if extracted_text:
+        text_content = extracted_text
+        print(f"📄 Using pre-extracted text for {filename} ({len(text_content)} characters)")
+    elif file_bytes:
+        print(f"📄 Extracting text from {filename}...")
+        text_content = extract_text_from_file(filename, file_bytes, content_type)
+    else:
+        print(f"⚠️ No text content provided for {filename}")
+        return None
+
+    if not text_content or len(text_content.strip()) < 10:
+        print(f"⚠️ Could not extract sufficient text content from {filename} for summary")
+        return None
+
+    truncated_text = text_content[:MAX_SUMMARY_INPUT_CHARS]
+
+    system_prompt = (
+        "You create concise knowledge-base summaries for uploaded company documents. "
+        "Write exactly three lines, each a short sentence under 120 characters, "
+        "capturing the document's purpose, key points, and any notable actions."
+    )
+
+    user_prompt = (
+        f"File name: {filename}\n\n"
+        "Provide a three-line summary of the key ideas in this document snippet:\n"
+        f"{truncated_text}"
+    )
+
+    try:
+        print(f"🤖 Generating summary for {filename} using {OPENAI_SUMMARY_MODEL}...")
+        if _openai_client:
+            response = _openai_client.chat.completions.create(
+                model=OPENAI_SUMMARY_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2,
+                max_tokens=220,
+            )
+            summary_text = response.choices[0].message.content.strip()
+        else:
+            if not openai:
+                print(f"⚠️ OpenAI library not available for {filename}")
+                return None
+            response = openai.ChatCompletion.create(
+                model=OPENAI_SUMMARY_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.2,
+                max_tokens=220,
+            )
+            summary_text = response['choices'][0]['message']['content'].strip()
+
+        if summary_text:
+            print(f"✅ Successfully generated summary for {filename}")
+            return summary_text
+        else:
+            print(f"⚠️ Empty summary response for {filename}")
+    except Exception as exc:
+        error_msg = str(exc)
+        # Check for API key errors
+        if '401' in error_msg or 'invalid_api_key' in error_msg or 'AuthenticationError' in str(type(exc)):
+            print(f"❌ OpenAI API key error for {filename}: Please check your OPENAI_API_KEY environment variable")
+            print(f"   Error: Invalid or missing API key. Update your .env file with a valid OpenAI API key.")
+        else:
+            print(f"❌ Summary generation failed for {filename}: {exc}")
+            import traceback
+            traceback.print_exc()
+
+    return None
+
+
+def analyze_document_with_assistants_api(filename, file_bytes, content_type=None):
+    """
+    Analyze document using OpenAI Assistants API with File Search.
+    Extracts: summary, publish date, and author name.
+    
+    Args:
+        filename: Name of the file
+        file_bytes: File content as bytes
+        content_type: MIME type of the file (optional)
+    
+    Returns:
+        dict with keys: summary, publish_date, author_name
+        Returns None if analysis fails
+    """
+    if not OPENAI_API_KEY or not _openai_client:
+        print(f"⚠️ OpenAI API key or client not available, skipping Assistants API analysis for {filename}")
+        return None
+    
+    try:
+        print(f"🤖 Starting Assistants API analysis for {filename}...")
+        
+        # Step 1: Upload file to OpenAI
+        print(f"📤 Step 1: Uploading {filename} to OpenAI...")
+        file_obj = _openai_client.files.create(
+            file=(filename, io.BytesIO(file_bytes), content_type or 'application/octet-stream'),
+            purpose="assistants"
+        )
+        file_id = file_obj.id
+        print(f"✅ File uploaded: {file_id}")
+        
+        # Step 2: Create an assistant with file search capability
+        print(f"🔧 Step 2: Creating assistant...")
+        assistant = _openai_client.beta.assistants.create(
+            name="Document Analyzer",
+            instructions=(
+                "You are a helpful assistant that analyzes documents and extracts key information. "
+                "When asked about a document, provide: "
+                "1. A concise summary (3 lines, each under 120 characters) "
+                "2. The publish date (if found, otherwise 'unknown') "
+                "3. The author name (if found, otherwise 'unknown')"
+            ),
+            model="gpt-4o-mini",
+            tools=[{"type": "file_search"}]
+        )
+        assistant_id = assistant.id
+        print(f"✅ Assistant created: {assistant_id}")
+        
+        # Step 3: Create a thread with the document attached
+        print(f"💬 Step 3: Creating thread with document...")
+        thread = _openai_client.beta.threads.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Please analyze this document ({filename}) and provide the following information:\n"
+                        "1. A concise summary (exactly 3 lines, each under 120 characters) covering the document's purpose, key points, and notable actions.\n"
+                        "2. The publish date (if found in the document, format as YYYY-MM-DD, otherwise respond with 'unknown').\n"
+                        "3. The author name (if found in the document, otherwise respond with 'unknown').\n\n"
+                        "Please format your response as:\n"
+                        "SUMMARY:\n[three-line summary]\n\n"
+                        "PUBLISH_DATE:\n[date or unknown]\n\n"
+                        "AUTHOR:\n[name or unknown]"
+                    ),
+                    "attachments": [
+                        {
+                            "file_id": file_id,
+                            "tools": [{"type": "file_search"}]
+                        }
+                    ]
+                }
+            ]
+        )
+        thread_id = thread.id
+        print(f"✅ Thread created: {thread_id}")
+        
+        # Step 4: Run the assistant
+        print(f"🔄 Step 4: Running assistant...")
+        run = _openai_client.beta.threads.runs.create_and_poll(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            timeout=300  # 5 minutes timeout
+        )
+        
+        if run.status != 'completed':
+            print(f"⚠️ Run status: {run.status}")
+            if run.status == 'failed':
+                print(f"❌ Run failed: {run.last_error}")
+            # Clean up
+            try:
+                _openai_client.files.delete(file_id)
+                _openai_client.beta.assistants.delete(assistant_id)
+            except:
+                pass
+            return None
+        
+        # Step 5: Get the response
+        print(f"📥 Step 5: Retrieving response...")
+        messages = _openai_client.beta.threads.messages.list(thread_id=thread_id)
+        
+        if not messages.data or len(messages.data) == 0:
+            print(f"⚠️ No messages in thread")
+            # Clean up
+            try:
+                _openai_client.files.delete(file_id)
+                _openai_client.beta.assistants.delete(assistant_id)
+            except:
+                pass
+            return None
+        
+        # Get the assistant's response (first message should be from assistant)
+        assistant_message = None
+        for msg in messages.data:
+            if msg.role == 'assistant' and msg.content:
+                assistant_message = msg
+                break
+        
+        if not assistant_message or not assistant_message.content:
+            print(f"⚠️ No assistant message found")
+            # Clean up
+            try:
+                _openai_client.files.delete(file_id)
+                _openai_client.beta.assistants.delete(assistant_id)
+            except:
+                pass
+            return None
+        
+        # Extract text from response
+        response_text = ""
+        for content_block in assistant_message.content:
+            if hasattr(content_block, 'text') and hasattr(content_block.text, 'value'):
+                response_text = content_block.text.value
+                break
+            elif isinstance(content_block, dict) and 'text' in content_block:
+                response_text = content_block['text'].get('value', '')
+                break
+        
+        if not response_text:
+            print(f"⚠️ Empty response text")
+            # Clean up
+            try:
+                _openai_client.files.delete(file_id)
+                _openai_client.beta.assistants.delete(assistant_id)
+            except:
+                pass
+            return None
+        
+        print(f"✅ Received response: {response_text[:200]}...")
+        
+        # Step 6: Parse the response
+        summary = None
+        publish_date = "unknown"
+        author_name = "unknown"
+        
+        # Parse SUMMARY section
+        if "SUMMARY:" in response_text:
+            summary_section = response_text.split("SUMMARY:")[1]
+            if "PUBLISH_DATE:" in summary_section:
+                summary_section = summary_section.split("PUBLISH_DATE:")[0]
+            summary_lines = [line.strip() for line in summary_section.strip().split("\n") if line.strip()]
+            if summary_lines:
+                summary = "\n".join(summary_lines[:3])  # Take first 3 lines
+        
+        # Parse PUBLISH_DATE section
+        if "PUBLISH_DATE:" in response_text:
+            date_section = response_text.split("PUBLISH_DATE:")[1]
+            if "AUTHOR:" in date_section:
+                date_section = date_section.split("AUTHOR:")[0]
+            date_value = date_section.strip().split("\n")[0].strip()
+            if date_value and date_value.lower() != "unknown":
+                publish_date = date_value
+            else:
+                publish_date = "unknown"
+        
+        # Parse AUTHOR section
+        if "AUTHOR:" in response_text:
+            author_section = response_text.split("AUTHOR:")[1]
+            author_value = author_section.strip().split("\n")[0].strip()
+            if author_value and author_value.lower() != "unknown":
+                author_name = author_value
+            else:
+                author_name = "unknown"
+        
+        # If summary wasn't found in structured format, try to extract it from the response
+        if not summary:
+            # Try to get first 3 lines as summary
+            lines = [line.strip() for line in response_text.strip().split("\n") if line.strip()]
+            if lines:
+                summary = "\n".join(lines[:3])
+        
+        # Clean up: Delete file and assistant
+        try:
+            print(f"🧹 Cleaning up OpenAI resources...")
+            _openai_client.files.delete(file_id)
+            _openai_client.beta.assistants.delete(assistant_id)
+            print(f"✅ Cleanup completed")
+        except Exception as cleanup_error:
+            print(f"⚠️ Cleanup warning: {cleanup_error}")
+        
+        result = {
+            'summary': summary or SUMMARY_PLACEHOLDER,
+            'publish_date': publish_date,
+            'author_name': author_name
+        }
+        
+        print(f"✅ Analysis complete for {filename}:")
+        print(f"   Summary: {summary[:100] if summary else 'N/A'}...")
+        print(f"   Publish Date: {publish_date}")
+        print(f"   Author: {author_name}")
+        
+        return result
+        
+    except Exception as exc:
+        error_msg = str(exc)
+        print(f"❌ Assistants API analysis failed for {filename}: {exc}")
+        import traceback
+        traceback.print_exc()
+        
+        # Try to clean up on error
+        try:
+            if 'file_id' in locals():
+                _openai_client.files.delete(file_id)
+            if 'assistant_id' in locals():
+                _openai_client.beta.assistants.delete(assistant_id)
+        except:
+            pass
+        
+        return None
+
+
+def save_file_metadata(
+    blob_path,
+    filename,
+    author_email,
+    summary_text,
+    file_size=None,
+    content_type=None,
+    author_name=None,
+    publish_date=None,
+    document_author=None
+):
+    if not blob_path:
+        return
+
+    try:
+        collection = get_mongo_connection('file-metadata')
+    except Exception as exc:
+        print(f"Unable to connect to MongoDB for metadata storage: {exc}")
+        return
+
+    now = datetime.now(pytz.UTC)
+    summary_to_store = (summary_text or SUMMARY_PLACEHOLDER).strip()
+    preferred_author_name = author_name or author_email
+    # Use document_author from analysis if available, otherwise use uploader's name
+    final_document_author = document_author if document_author and document_author.lower() != 'unknown' else None
+    final_publish_date = publish_date if publish_date and publish_date.lower() != 'unknown' else None
+
+    try:
+        update_data = {
+            'file_name': filename,
+            'author_email': author_email,
+            'author_name': preferred_author_name,
+            'summary': summary_to_store,
+            'size': file_size,
+            'content_type': content_type,
+            'updated_at': now,
+            'summary_model': OPENAI_SUMMARY_MODEL if summary_text else None
+        }
+        
+        # Add document metadata if available
+        if final_document_author:
+            update_data['document_author'] = final_document_author
+        if final_publish_date:
+            update_data['publish_date'] = final_publish_date
+        
+        collection.update_one(
+            {'blob_path': blob_path},
+            {
+                '$set': update_data,
+                '$setOnInsert': {
+                    'blob_path': blob_path,
+                    'uploaded_at': now
+                }
+            },
+            upsert=True
+        )
+        print(f"Stored metadata for {blob_path}")
+        if final_document_author:
+            print(f"   Document author: {final_document_author}")
+        if final_publish_date:
+            print(f"   Publish date: {final_publish_date}")
+    except Exception as exc:
+        print(f"Failed to store metadata for {filename}: {exc}")
+
+
+def fetch_file_metadata_map(file_paths):
+    if not file_paths:
+        return {}
+
+    try:
+        collection = get_mongo_connection('file-metadata')
+    except Exception as exc:
+        print(f"Unable to connect to MongoDB for metadata retrieval: {exc}")
+        return {}
+
+    try:
+        # First, try to match by blob_path (exact match)
+        docs_by_path = collection.find({'blob_path': {'$in': file_paths}})
+        metadata_map = {}
+        matched_paths = set()
+        
+        # Process exact blob_path matches
+        for doc in docs_by_path:
+            blob_path = doc.get('blob_path')
+            if not blob_path:
+                continue
+            
+            matched_paths.add(blob_path)
+            
+            uploaded_at = doc.get('uploaded_at')
+            uploaded_at_iso = None
+            if isinstance(uploaded_at, datetime):
+                if uploaded_at.tzinfo is None:
+                    uploaded_at = uploaded_at.replace(tzinfo=pytz.UTC)
+                uploaded_at_iso = uploaded_at.isoformat()
+            elif uploaded_at:
+                uploaded_at_iso = str(uploaded_at)
+
+            metadata_map[blob_path] = {
+                'summary': doc.get('summary') or SUMMARY_PLACEHOLDER,
+                'author_name': doc.get('author_name') or doc.get('author_email'),
+                'author_email': doc.get('author_email'),
+                'uploaded_at': uploaded_at_iso,
+                'file_name': doc.get('file_name'),
+                'size': doc.get('size'),
+                'content_type': doc.get('content_type'),
+                'publish_date': doc.get('publish_date'),
+                'document_author': doc.get('document_author'),
+            }
+            print(f"✅ Matched by blob_path: {blob_path}")
+        
+        # For files not matched by blob_path, try matching by file_name
+        unmatched_paths = [path for path in file_paths if path not in matched_paths]
+        if unmatched_paths:
+            # Extract filenames from unmatched paths
+            file_names = [path.split('/')[-1] if '/' in path else path for path in unmatched_paths]
+            
+            # Query by file_name
+            docs_by_name = collection.find({'file_name': {'$in': file_names}})
+            
+            # Create a mapping of filename to full paths
+            filename_to_paths = {}
+            for path in unmatched_paths:
+                filename = path.split('/')[-1] if '/' in path else path
+                if filename not in filename_to_paths:
+                    filename_to_paths[filename] = []
+                filename_to_paths[filename].append(path)
+            
+            # Process file_name matches
+            for doc in docs_by_name:
+                file_name = doc.get('file_name')
+                if not file_name:
+                    continue
+                
+                # Match this document to all paths with this filename
+                matching_paths = filename_to_paths.get(file_name, [])
+                for path in matching_paths:
+                    if path not in metadata_map:  # Only if not already matched
+                        uploaded_at = doc.get('uploaded_at')
+                        uploaded_at_iso = None
+                        if isinstance(uploaded_at, datetime):
+                            if uploaded_at.tzinfo is None:
+                                uploaded_at = uploaded_at.replace(tzinfo=pytz.UTC)
+                            uploaded_at_iso = uploaded_at.isoformat()
+                        elif uploaded_at:
+                            uploaded_at_iso = str(uploaded_at)
+                        
+                        metadata_map[path] = {
+                            'summary': doc.get('summary') or SUMMARY_PLACEHOLDER,
+                            'author_name': doc.get('author_name') or doc.get('author_email'),
+                            'author_email': doc.get('author_email'),
+                            'uploaded_at': uploaded_at_iso,
+                            'file_name': doc.get('file_name'),
+                            'size': doc.get('size'),
+                            'content_type': doc.get('content_type'),
+                            'publish_date': doc.get('publish_date'),
+                            'document_author': doc.get('document_author'),
+                        }
+                        print(f"✅ Matched by file_name: {file_name} -> {path}")
+        
+        # Log unmatched files
+        all_matched = set(metadata_map.keys())
+        unmatched = [path for path in file_paths if path not in all_matched]
+        if unmatched:
+            print(f"⚠️ No metadata found for {len(unmatched)} file(s): {unmatched[:5]}...")  # Show first 5
+        
+        print(f"📊 Metadata matching summary: {len(metadata_map)}/{len(file_paths)} files matched")
+        return metadata_map
+    except Exception as exc:
+        print(f"Failed to fetch file metadata: {exc}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
+
 
 
 
@@ -692,6 +1527,20 @@ def allowed_file(filename):
 def handle_upload():
     """Handle file upload and forward to Azure service"""
     try:
+        if 'email' not in session:
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+
+        author_email = session.get('email')
+        author_name = (
+            session.get('display_name')
+            or session.get('name')
+            or session.get('full_name')
+            or author_email
+        )
+
         # Check if files are in the request
         if 'files' not in request.files:
             return jsonify({
@@ -731,25 +1580,122 @@ def handle_upload():
 
                 # Secure the filename
                 filename = secure_filename(file.filename)
+                extracted_text = None
                 
                 try:
-                    # Prepare file for upload to Azure
+                    # ========== STEP 1: READ FILE CONTENT ==========
                     file.seek(0)  # Reset pointer before reading
                     file_content = file.read()
                     
                     # Determine MIME type based on filename; default to octet-stream
                     guessed_mime, _ = mimetypes.guess_type(filename)
                     content_type = guessed_mime or 'application/octet-stream'
+                    
+                    print(f"📄 Processing {filename}...")
+                    print(f"   File size: {file_size} bytes")
+                    print(f"   Content type: {content_type}")
+                    logger.info("Processing upload '%s' (size=%d, content_type=%s)", filename, file_size, content_type)
+                    
+                    # ========== STEP 2: ANALYZE DOCUMENT USING ASSISTANTS API ==========
+                    print(f"🤖 Step 1: Analyzing {filename} using OpenAI Assistants API...")
+                    
+                    # Initialize variables
+                    summary_text = None
+                    publish_date = None
+                    document_author = None
+                    
+                    # Use Assistants API to extract summary, publish date, and author
+                    analysis_result = analyze_document_with_assistants_api(
+                        filename=filename,
+                        file_bytes=file_content,
+                        content_type=content_type
+                    )
+                    
+                    # Extract results from analysis
+                    if analysis_result:
+                        summary_text = analysis_result.get('summary')
+                        publish_date = analysis_result.get('publish_date')
+                        document_author = analysis_result.get('author_name')
+                        
+                        print(f"✅ Analysis complete for {filename}:")
+                        print(f"   Summary: {'Generated' if summary_text and summary_text != SUMMARY_PLACEHOLDER else 'Placeholder'}")
+                        print(f"   Publish Date: {publish_date}")
+                        print(f"   Document Author: {document_author}")
+                        logger.info(
+                            "Assistants API metadata for '%s' -> publish_date=%s, author=%s",
+                            filename,
+                            publish_date,
+                            document_author,
+                        )
+                    else:
+                        # Fallback to old method if Assistants API fails
+                        print(f"⚠️ Assistants API analysis failed, falling back to text extraction...")
+                        extracted_text = extract_text_from_file(filename, file_content, content_type)
+                        
+                        if not extracted_text or len(extracted_text.strip()) < 10:
+                            print(f"⚠️ Could not extract text from {filename}, proceeding without summary")
+                            summary_text = None
+                        else:
+                            print(f"✅ Extracted {len(extracted_text)} characters from {filename}")
+                            logger.info(
+                                "Extracted %d characters from '%s' for offline analysis",
+                                len(extracted_text),
+                                filename,
+                            )
+                            
+                            # Generate summary using old method
+                            print(f"🤖 Generating summary for {filename} using OpenAI...")
+                            summary_text = generate_file_summary(
+                                filename, 
+                                file_bytes=file_content, 
+                                content_type=content_type,
+                                extracted_text=extracted_text
+                            )
+                            
+                            if summary_text:
+                                print(f"✅ Summary generated: {summary_text[:100]}...")
+                                logger.info("Generated fallback summary for '%s'", filename)
+                            else:
+                                print(f"⚠️ No summary generated for {filename}, using placeholder")
 
+                    # If publish date or document author are missing, try extracting from text content
+                    needs_publish_date = not publish_date or str(publish_date).strip().lower() == 'unknown'
+                    needs_author = not document_author or str(document_author).strip().lower() == 'unknown'
+
+                    if needs_publish_date or needs_author:
+                        if extracted_text is None:
+                            extracted_text = extract_text_from_file(filename, file_content, content_type)
+
+                        if extracted_text:
+                            derived_publish_date, derived_author = extract_metadata_from_text(extracted_text)
+
+                            if needs_publish_date and derived_publish_date:
+                                publish_date = derived_publish_date
+
+                            if needs_author and derived_author:
+                                document_author = derived_author
+
+                            if derived_publish_date or derived_author:
+                                logger.info(
+                                    "Resolved metadata for '%s' via text parsing -> publish_date=%s, author=%s",
+                                    filename,
+                                    publish_date,
+                                    document_author,
+                                )
+                        else:
+                            logger.debug(
+                                "No extracted text available to derive metadata for '%s'",
+                                filename,
+                            )
+                    
+                    # ========== STEP 4: UPLOAD TO BLOB STORAGE ==========
+                    print(f"📤 Step 3: Uploading {filename} to Azure blob storage...")
+                    print(f"   URL: {azure_base_url}")
+                    
                     # IMPORTANT: Azure expects 'file' (singular) as the parameter name
                     files_to_upload = {
                         'file': (filename, file_content, content_type)
                     }
-                    
-                    print(f"📤 Uploading {filename} to Azure...")
-                    print(f"   URL: {azure_base_url}")
-                    print(f"   File size: {file_size} bytes")
-                    print(f"   Filename: {filename}")
                     
                     # Upload to Azure service
                     response = requests.post(
@@ -788,15 +1734,39 @@ def handle_upload():
                             chunks = file_size // 1024 if file_size > 0 else 1
                             total_chunks += chunks
                             
+                            # ========== STEP 5: SAVE METADATA WITH SUMMARY ==========
+                            print(f"💾 Step 4: Saving metadata for {filename}...")
+                            save_file_metadata(
+                                blob_path=file_path,
+                                filename=azure_response.get('filename', filename),
+                                author_email=author_email,
+                                summary_text=summary_text,
+                                file_size=file_size,
+                                content_type=content_type,
+                                author_name=author_name,
+                                publish_date=publish_date,
+                                document_author=document_author
+                            )
+                            print(f"✅ Metadata saved for {filename}")
+
                             uploaded_files.append({
                                 'filename': azure_response.get('filename', filename),
                                 'size': file_size,
                                 'chunks': chunks,
-                                'blob_path': file_path
+                                'blob_path': file_path,
+                                'summary': summary_text or SUMMARY_PLACEHOLDER,
+                                'author': author_name,
+                                'uploaded_at': datetime.now(pytz.UTC).isoformat(),
+                                'publishDate': publish_date,
+                                'publish_date': publish_date,
+                                'documentAuthor': document_author,
+                                'document_author': document_author,
                             })
-                            print(f"✅ Successfully uploaded {filename}")
+                            print(f"✅ Successfully processed {filename}")
                             print(f"   Path: {file_path}")
                             print(f"   Message: {message}")
+                            print(f"   Summary: {'Generated' if summary_text else 'Placeholder'}")
+                            print(f"   Next: File will be indexed for embeddings in ingestion step")
                         else:
                             # Azure returned 200 but with error status
                             error_msg = azure_response.get('message', azure_response.get('error', 'Unknown error'))
@@ -904,6 +1874,12 @@ def handle_upload():
 def ingest_files():
     """Handle file ingestion after upload"""
     try:
+        if 'email' not in session:
+            return jsonify({
+                'status': 'error',
+                'message': 'Unauthorized'
+            }), 401
+
         # Get data from request body
         data = request.get_json()
         
@@ -1083,15 +2059,31 @@ def get_files():
         # Backend service URL
         backend_url = f'{BASE_URL}/list_content_files'
         
-        # Call the backend service
-        response = requests.get(backend_url, timeout=10)
+        # Call the backend service with increased timeout
+        try:
+            response = requests.get(backend_url, timeout=30)
+        except requests.exceptions.Timeout:
+            return jsonify({
+                'status': 'error',
+                'message': 'Backend service request timed out. Please try again later.'
+            }), 504
+        except requests.exceptions.ConnectionError:
+            return jsonify({
+                'status': 'error',
+                'message': 'Could not connect to backend service. Please check your connection.'
+            }), 503
+        except requests.exceptions.RequestException as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Error connecting to backend service: {str(e)}'
+            }), 500
         
         # Check if request was successful
         if response.status_code != 200:
             return jsonify({
                 'status': 'error',
                 'message': f'Backend service returned status code: {response.status_code}'
-            }), 500
+            }), response.status_code
         
         # Get the data from backend
         backend_data = response.json()
@@ -1100,6 +2092,7 @@ def get_files():
         files_by_email = {}
         ungrouped_files = []  # Files without email/ID prefix
         total_size = 0  # Track total size of all files
+        all_file_entries = []
         
         if 'files' in backend_data and isinstance(backend_data['files'], list):
             for file_item in backend_data['files']:
@@ -1157,6 +2150,7 @@ def get_files():
                     # Update fileName to be just the file name without email prefix
                     file_metadata['fileName'] = file_name
                     files_by_email[email]['files'].append(file_metadata)
+                    all_file_entries.append(file_metadata)
                     files_by_email[email]['fileCount'] += 1
                     if file_metadata['size']:
                         files_by_email[email]['totalSize'] += file_metadata['size']
@@ -1164,6 +2158,7 @@ def get_files():
                     # File without email/ID prefix
                     if not email_filter or email_filter == 'Ungrouped':
                         ungrouped_files.append(file_metadata)
+                        all_file_entries.append(file_metadata)
         
         # Sort files within each email group
         for email in files_by_email:
@@ -1189,6 +2184,68 @@ def get_files():
                 'totalSizeFormatted': format_file_size(ungrouped_total_size),
                 'fileCount': len(ungrouped_files)
             }
+
+        # Attach metadata (summary, author, upload date)
+        file_paths = [entry.get('fullPath') for entry in all_file_entries if entry.get('fullPath')]
+        
+        print(f"\n📋 Fetching metadata for {len(file_paths)} files from MongoDB collection 'file-metadata'")
+        if file_paths:
+            print(f"   Sample paths: {file_paths[:3]}...")  # Show first 3 paths
+        
+        metadata_map = fetch_file_metadata_map(file_paths)
+        
+        print(f"📋 Metadata map contains {len(metadata_map)} entries")
+        if metadata_map:
+            print(f"   Sample matched paths: {list(metadata_map.keys())[:3]}...")
+        
+        matched_count = 0
+        unmatched_count = 0
+        
+        for entry in all_file_entries:
+            full_path = entry.get('fullPath')
+            file_name = entry.get('fileName', 'unknown')
+            meta = metadata_map.get(full_path) if full_path else None
+            
+            if meta:
+                matched_count += 1
+                # Set summary (avoid placeholder if we have actual summary)
+                summary_value = meta.get('summary')
+                if summary_value and summary_value.strip() and summary_value.strip() != SUMMARY_PLACEHOLDER:
+                    entry['summary'] = summary_value.strip()
+                else:
+                    entry['summary'] = SUMMARY_PLACEHOLDER
+                
+                # Set author fields
+                entry['uploadedBy'] = meta.get('author_name') or meta.get('author_email') or 'Unknown author'
+                entry['authorEmail'] = meta.get('author_email')
+                entry['author_name'] = meta.get('author_name') or meta.get('author_email')
+                entry['uploadedAt'] = meta.get('uploaded_at')
+                
+                # Set document metadata (publish date and document author)
+                entry['publishDate'] = meta.get('publish_date')
+                entry['documentAuthor'] = meta.get('document_author')
+                
+                # Debug log for files with summaries
+                if entry['summary'] and entry['summary'] != SUMMARY_PLACEHOLDER:
+                    print(f"✅ [{matched_count}] File: {file_name}")
+                    print(f"   Path: {full_path}")
+                    print(f"   Summary: {entry['summary'][:80]}...")
+                    print(f"   Author: {entry['uploadedBy']}")
+                    print(f"   Uploaded: {entry.get('uploadedAt', 'N/A')}")
+                    if entry.get('publishDate'):
+                        print(f"   Publish Date: {entry['publishDate']}")
+                    if entry.get('documentAuthor'):
+                        print(f"   Document Author: {entry['documentAuthor']}")
+            else:
+                unmatched_count += 1
+                entry.setdefault('summary', SUMMARY_PLACEHOLDER)
+                entry.setdefault('uploadedBy', 'Unknown author')
+                entry.setdefault('publishDate', None)
+                entry.setdefault('documentAuthor', None)
+                if full_path:
+                    print(f"⚠️ [{unmatched_count}] No metadata found for: {file_name} (path: {full_path})")
+        
+        print(f"\n📊 Final metadata attachment: {matched_count} matched, {unmatched_count} unmatched out of {len(all_file_entries)} total files\n")
         
         # Return processed data
         return jsonify({
@@ -1202,18 +2259,6 @@ def get_files():
             'sort_by': sort_by,
             'sort_order': sort_order
         }), 200
-        
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'status': 'error',
-            'message': 'Backend service request timed out'
-        }), 504
-        
-    except requests.exceptions.ConnectionError:
-        return jsonify({
-            'status': 'error',
-            'message': 'Could not connect to backend service'
-        }), 503
         
     except Exception as e:
         print(f"Error in get_files endpoint: {str(e)}")
@@ -1261,7 +2306,7 @@ def sort_files(files_list, sort_by='date', sort_order='desc'):
     elif sort_by == 'date':
         return sorted(
             files_list, 
-            key=lambda x: x.get('lastModified') or x.get('createdOn') or '', 
+            key=lambda x: x.get('uploadedAt') or x.get('lastModified') or x.get('createdOn') or '', 
             reverse=reverse
         )
     elif sort_by == 'type':
@@ -1270,7 +2315,7 @@ def sort_files(files_list, sort_by='date', sort_order='desc'):
         # Default: sort by date
         return sorted(
             files_list, 
-            key=lambda x: x.get('lastModified') or x.get('createdOn') or '', 
+            key=lambda x: x.get('uploadedAt') or x.get('lastModified') or x.get('createdOn') or '', 
             reverse=reverse
         )
 
@@ -1296,10 +2341,115 @@ def delete_file():
         response = requests.delete(backend_url, json=payload)
         
         if response.status_code == 200:
+            try:
+                metadata_collection = get_mongo_connection('file-metadata')
+                metadata_collection.delete_one({'blob_path': file_path})
+            except Exception as exc:
+                print(f"Warning: failed to remove metadata for {file_path}: {exc}")
             return jsonify({'message': 'File deleted successfully'}), 200
         else:
             return jsonify({'error': 'Failed to delete file from backend', 'details': response.text}), response.status_code
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/content/<path:file_path>', methods=['GET'])
+def proxy_content_preview(file_path):
+    """
+    Proxy endpoint to fetch content from backend and inject CSS for white background
+    This ensures we can style the content even if it's cross-origin
+    """
+    try:
+        if 'email' not in session:
+            next_url = request.full_path if request.method in ('GET', 'HEAD') else ''
+            if not is_safe_url(next_url):
+                next_url = ''
+            return redirect(url_for('login', next=next_url or None))
+
+        # Get theme parameter (default to 'light')
+        theme = request.args.get('theme', 'light')
+        
+        # Construct backend URL
+        backend_url = f"{BASE_URL}/content/{file_path}"
+        if theme:
+            separator = '&' if '?' in backend_url else '?'
+            backend_url = f"{backend_url}{separator}theme={theme}"
+        
+        # Fetch content from backend
+        response = requests.get(backend_url, timeout=30)
+        content_type = response.headers.get('Content-Type', '')
+        excluded_headers = {'content-encoding', 'transfer-encoding', 'connection', 'content-length'}
+
+        # Helper to copy headers to Flask response
+        def apply_headers(flask_response):
+            for header, value in response.headers.items():
+                header_lower = header.lower()
+                if header_lower in excluded_headers:
+                    continue
+                if header_lower == 'content-type':
+                    flask_response.headers['Content-Type'] = value
+                else:
+                    flask_response.headers[header] = value
+            return flask_response
+
+        # If the response is not successful, proxy it as-is (no CSS injection)
+        if response.status_code != 200:
+            flask_response = Response(response.content, status=response.status_code)
+            return apply_headers(flask_response)
+        
+        # If it's HTML/text content, inject CSS for white background
+        if 'text/html' in content_type or content_type.startswith('text/'):
+            content = response.text
+            css_injection = """
+<style id="preview-override-styles">
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  body * {
+    background-color: transparent !important;
+  }
+  pre, code {
+    background-color: #f8f9fa !important;
+    color: #000000 !important;
+    border: 1px solid #e9ecef !important;
+    padding: 12px !important;
+    border-radius: 4px !important;
+  }
+  .json-viewer, .json-container, [class*="json"], [id*="json"] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  div, section, article, main {
+    background-color: transparent !important;
+  }
+  /* Override any dark theme classes */
+  [class*="dark"], [class*="black"], [class*="night"] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+</style>
+"""
+
+            if '</head>' in content:
+                content = content.replace('</head>', css_injection + '</head>')
+            elif '<body' in content:
+                content = content.replace('<body', css_injection + '<body')
+            else:
+                content = css_injection + content
+
+            flask_response = Response(content, status=200)
+            return apply_headers(flask_response)
+
+        # For binary or other content types (e.g., PDFs), proxy the content as-is
+        flask_response = Response(response.content, status=200)
+        return apply_headers(flask_response)
+        
+    except requests.exceptions.Timeout:
+        return jsonify({'error': 'Backend service request timed out'}), 504
+    except requests.exceptions.ConnectionError:
+        return jsonify({'error': 'Could not connect to backend service'}), 503
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
