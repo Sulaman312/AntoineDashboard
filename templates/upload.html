@@ -1324,7 +1324,7 @@
       }
 
       // Display filtered and sorted files
-      filteredFiles.forEach((file) => {
+      filteredFiles.forEach((file, index) => {
         try {
           // Validate file object has required properties
           if (!file || !file.fileName) {
@@ -1445,6 +1445,18 @@
         </div>
         <button class="file-close-btn" data-filepath="${filePathAttr}">✕</button>
       `;
+
+          const tooltipPlacement = index < 3 ? 'fixed-below' : 'fixed-above';
+          fileItem.dataset.tooltipPlacement = tooltipPlacement;
+
+          const tooltip = fileItem.querySelector(".file-hover-card");
+          if (tooltip) {
+            if (tooltipPlacement === 'fixed-above') {
+              tooltip.classList.add("position-above");
+            } else {
+              tooltip.classList.remove("position-above");
+            }
+          }
 
           // Add click event for file selection
           const fileItemMain = fileItem.querySelector(".file-item-main");
@@ -1708,6 +1720,16 @@
       if (tooltipSpacer && tooltipHeight > Number(tooltipSpacer.dataset.height || 0)) {
         tooltipSpacer.dataset.height = String(tooltipHeight);
         tooltipSpacer.style.height = `${tooltipHeight}px`;
+      }
+
+      const tooltipPlacement = fileItem.dataset.tooltipPlacement;
+      if (tooltipPlacement === 'fixed-above') {
+        tooltip.classList.add("position-above");
+        return;
+      }
+      if (tooltipPlacement === 'fixed-below') {
+        tooltip.classList.remove("position-above");
+        return;
       }
 
       fileItem.addEventListener("mouseenter", () => {
