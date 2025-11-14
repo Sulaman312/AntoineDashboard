@@ -319,6 +319,38 @@
     <div class="selected-files-container" id="selectedFilesContainer" style="display: none;">
       <div class="selected-files-list" id="fileItems"></div>
     </div>
+
+    <!-- Backdrop overlay for file detail panel -->
+    <div class="file-detail-backdrop" id="fileDetailBackdrop" aria-hidden="true"></div>
+    
+    <div class="file-detail-panel" id="fileDetailPanel" aria-hidden="true">
+      <div class="file-detail-header">
+        <div>
+          <p class="detail-label">File Name</p>
+          <p class="detail-value" id="detailFileName">Hover over a file to view its details.</p>
+        </div>
+        <div class="detail-dates">
+          <p class="detail-label">Last Updated</p>
+          <p class="detail-value" id="detailFileDate">—</p>
+        </div>
+      </div>
+      <div class="file-detail-meta">
+        <div>
+          <p class="detail-label">Author</p>
+          <p class="detail-value" id="detailAuthor">—</p>
+        </div>
+        <div>
+          <p class="detail-label">Published</p>
+          <p class="detail-value" id="detailPublishDate">—</p>
+        </div>
+      </div>
+      <div class="file-detail-summary">
+        <p class="detail-label">Summary</p>
+        <div class="detail-summary-text" id="detailSummary">
+          Select a file to see its summary.
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="file-preview-overlay" id="filePreviewOverlay"></div>
@@ -370,12 +402,83 @@
     const previewModal = document.getElementById("filePreviewModal");
     const previewFrame = document.getElementById("previewFrame");
     const previewStatus = document.getElementById("previewStatus");
+    const sidebarContent = document.getElementById("sidebarContent");
     const previewFileName = document.getElementById("previewFileName");
     const previewOpenExternal = document.getElementById("previewOpenExternal");
     const previewCloseBtn = document.getElementById("previewCloseBtn");
     const previewDefaultMessage = previewStatus ? previewStatus.textContent : "Select a file to load its preview.";
+    const fileDetailPanel = document.getElementById("fileDetailPanel");
+    const fileDetailBackdrop = document.getElementById("fileDetailBackdrop");
+    const detailFileName = document.getElementById("detailFileName");
+    const detailFileDate = document.getElementById("detailFileDate");
+    const detailAuthor = document.getElementById("detailAuthor");
+    const detailPublishDate = document.getElementById("detailPublishDate");
+    const detailSummary = document.getElementById("detailSummary");
     let currentPreviewUrl = "";
     let previewStatusTimeoutId = null;
+    let detailHideTimeoutId = null;
+
+    // Debug: Check if all detail panel elements are found
+    if (!fileDetailPanel || !detailFileName || !detailFileDate || !detailAuthor || !detailPublishDate || !detailSummary) {
+      console.warn('Some file detail panel elements are missing:', {
+        fileDetailPanel: !!fileDetailPanel,
+        detailFileName: !!detailFileName,
+        detailFileDate: !!detailFileDate,
+        detailAuthor: !!detailAuthor,
+        detailPublishDate: !!detailPublishDate,
+        detailSummary: !!detailSummary
+      });
+    } else {
+      console.log('All file detail panel elements found successfully');
+    }
+
+    // Function to update panel position based on sidebar
+    function updatePanelPosition() {
+      if (!fileDetailPanel || !fileDetailPanel.classList.contains('visible')) {
+        return;
+      }
+      
+      const sidebarMenu = document.getElementById('sidebarMenu');
+      let panelLeft = 340; // Default: 320px sidebar + 20px gap
+      
+      if (sidebarMenu && sidebarMenu.classList.contains('active')) {
+        const sidebarRect = sidebarMenu.getBoundingClientRect();
+        const sidebarWidth = sidebarRect.width || sidebarMenu.offsetWidth || 320;
+        panelLeft = sidebarWidth + 20; // Sidebar width + 20px gap
+      }
+      
+      fileDetailPanel.style.left = panelLeft + 'px';
+    }
+
+    // Keep panel visible when hovering over it
+    if (fileDetailPanel) {
+      fileDetailPanel.addEventListener('mouseenter', () => {
+        // Cancel any pending hide timeout when mouse enters the panel
+        if (detailHideTimeoutId) {
+          clearTimeout(detailHideTimeoutId);
+          detailHideTimeoutId = null;
+        }
+      });
+
+      fileDetailPanel.addEventListener('mouseleave', () => {
+        // Hide panel when mouse leaves the panel
+        hideFileDetailCard();
+      });
+    }
+
+    // Update panel position when sidebar is resized or toggled
+    const sidebarMenuElement = document.getElementById('sidebarMenu');
+    if (sidebarMenuElement) {
+      // Listen for sidebar resize (using ResizeObserver if available, or window resize)
+      const resizeObserver = new ResizeObserver(() => {
+        updatePanelPosition();
+      });
+      
+      resizeObserver.observe(sidebarMenuElement);
+      
+      // Also update on window resize
+      window.addEventListener('resize', updatePanelPosition);
+    }
 
     if (previewCloseBtn) {
       previewCloseBtn.addEventListener("click", closeFilePreview);
@@ -495,6 +598,159 @@
         hour: '2-digit',
         minute: '2-digit'
       });
+    }
+
+    function getFileAuthorValue(file) {
+      const fallback = 'Unknown author';
+      if (!file) return fallback;
+      const author =
+        file.documentAuthor ||
+        file.document_author ||
+        file.uploadedBy ||
+        file.authorEmail ||
+        file.author_email ||
+        file.author_name ||
+        file.email ||
+        fallback;
+      return author && String(author).trim() ? String(author).trim() : fallback;
+    }
+
+    function getFilePublishDateValue(file) {
+      const fallback = 'Unknown';
+      if (!file) return fallback;
+      const publishDate = file.publishDate || file.publish_date || '';
+      return publishDate && String(publishDate).trim() ? String(publishDate).trim() : fallback;
+    }
+
+    function getSummaryLines(file) {
+      if (!file) return ['Summary not available.'];
+      let summaryText = '';
+      if (file.summary && String(file.summary).trim() && String(file.summary).trim() !== 'Summary not available.') {
+        summaryText = String(file.summary);
+      } else if (file.summary_text && String(file.summary_text).trim()) {
+        summaryText = String(file.summary_text);
+      }
+      if (!summaryText.trim()) {
+        return ['Summary not available.'];
+      }
+      return summaryText
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    }
+
+    function showFileDetailCard(file) {
+      if (!fileDetailPanel || !detailFileName || !detailFileDate || !detailAuthor || !detailPublishDate || !detailSummary) {
+        console.warn('File detail panel elements not found');
+        return;
+      }
+
+      // Clear any pending hide timeout
+      if (detailHideTimeoutId) {
+        clearTimeout(detailHideTimeoutId);
+        detailHideTimeoutId = null;
+      }
+
+      if (!file) {
+        console.warn('No file data provided');
+        return;
+      }
+
+      const fileNameValue = file?.fileName || 'Unknown file';
+      const updatedAt = formatDateDisplay(file?.uploadedAt || file?.lastModified || file?.createdOn);
+      const authorValue = getFileAuthorValue(file);
+      const publishDateValue = getFilePublishDateValue(file);
+      const summaryLines = getSummaryLines(file);
+
+      // Update all fields
+      detailFileName.textContent = fileNameValue;
+      detailFileDate.textContent = updatedAt;
+      detailAuthor.textContent = authorValue;
+      detailPublishDate.textContent = publishDateValue;
+
+      // Update summary
+      detailSummary.innerHTML = '';
+      summaryLines.forEach((line) => {
+        const p = document.createElement('p');
+        p.textContent = line;
+        detailSummary.appendChild(p);
+      });
+
+      // Calculate position relative to sidebar (20px to the left of sidebar's right edge)
+      const sidebarMenu = document.getElementById('sidebarMenu');
+      let panelLeft = 340; // Default: 320px sidebar + 20px gap
+      
+      if (sidebarMenu && sidebarMenu.classList.contains('active')) {
+        const sidebarRect = sidebarMenu.getBoundingClientRect();
+        const sidebarWidth = sidebarRect.width || sidebarMenu.offsetWidth || 320;
+        panelLeft = sidebarWidth + 20; // Sidebar width + 20px gap
+      }
+      
+      // Show the panel - use inline styles to ensure visibility
+      fileDetailPanel.classList.add('visible');
+      fileDetailPanel.setAttribute('aria-hidden', 'false');
+      
+      // Force visibility with inline styles and position relative to sidebar
+      fileDetailPanel.style.opacity = '1';
+      fileDetailPanel.style.visibility = 'visible';
+      fileDetailPanel.style.left = panelLeft + 'px';
+      fileDetailPanel.style.transform = 'translateY(-50%) translateX(0)';
+      fileDetailPanel.style.pointerEvents = 'auto';
+      
+      // Debug: Check panel state
+      const computedStyle = window.getComputedStyle(fileDetailPanel);
+      console.log('File detail card shown for:', fileNameValue);
+      console.log('Panel display:', computedStyle.display);
+      console.log('Panel visibility:', computedStyle.visibility);
+      console.log('Panel opacity:', computedStyle.opacity);
+      console.log('Panel has visible class:', fileDetailPanel.classList.contains('visible'));
+      console.log('Panel offsetHeight:', fileDetailPanel.offsetHeight);
+      console.log('Panel offsetWidth:', fileDetailPanel.offsetWidth);
+    }
+
+    function hideFileDetailCard() {
+      if (!fileDetailPanel) {
+        return;
+      }
+
+      // Clear any pending hide timeout
+      if (detailHideTimeoutId) {
+        clearTimeout(detailHideTimeoutId);
+        detailHideTimeoutId = null;
+      }
+
+      // Use a delay to allow moving from file item to panel
+      detailHideTimeoutId = window.setTimeout(() => {
+        if (fileDetailPanel) {
+          console.log('Hiding file detail panel');
+          fileDetailPanel.classList.remove('visible');
+          fileDetailPanel.setAttribute('aria-hidden', 'true');
+          
+          // Reset inline styles
+          fileDetailPanel.style.opacity = '0';
+          fileDetailPanel.style.visibility = 'hidden';
+          fileDetailPanel.style.transform = 'translateY(-50%) translateX(20px)';
+          fileDetailPanel.style.pointerEvents = 'none';
+          
+          if (detailSummary) {
+            detailSummary.innerHTML = '<p>Select a file to see its summary.</p>';
+          }
+          if (detailFileName) {
+            detailFileName.textContent = 'Hover over a file to view its details.';
+          }
+          if (detailFileDate) {
+            detailFileDate.textContent = '—';
+          }
+          if (detailAuthor) {
+            detailAuthor.textContent = '—';
+          }
+          if (detailPublishDate) {
+            detailPublishDate.textContent = '—';
+          }
+        }
+        detailHideTimeoutId = null;
+      }, 200);
     }
     // ==================== TOAST NOTIFICATION SYSTEM ====================
     function showToast(message, type = "info", duration = 3000) {
@@ -1310,12 +1566,6 @@
       // Clear content
       sidebarContent.innerHTML = "";
 
-      const tooltipSpacer = document.createElement("div");
-      tooltipSpacer.id = "sidebarTooltipSpacer";
-      tooltipSpacer.style.height = "0px";
-      tooltipSpacer.style.pointerEvents = "none";
-      tooltipSpacer.dataset.height = "0";
-
       // Show "no results" message if filtered list is empty
       if (filteredFiles.length === 0) {
         sidebarContent.innerHTML =
@@ -1357,48 +1607,6 @@
             fileSize = 'Unknown size';
           }
 
-          // Get summary text - check multiple possible fields
-          // Priority: summary > summary_text > placeholder
-          let summaryText = '';
-          if (file.summary && String(file.summary).trim() && String(file.summary).trim() !== 'Summary not available.') {
-            summaryText = String(file.summary).trim();
-          } else if (file.summary_text && String(file.summary_text).trim()) {
-            summaryText = String(file.summary_text).trim();
-          } else {
-            summaryText = 'Summary not available.';
-          }
-
-          const summaryLines = summaryText !== 'Summary not available.'
-            ? summaryText.split('\n').filter(line => line.trim().length > 0).slice(0, 3)
-            : [];
-          const summaryHtml = summaryLines.length > 0
-            ? summaryLines.map(line => `<p class="hover-summary-line">${escapeHtml(line.trim())}</p>`).join('')
-            : '<p class="hover-summary-line">Summary not available.</p>';
-
-          // Get author - check multiple possible fields
-          const authorDisplay = escapeHtml(
-            file.uploadedBy ||
-            file.authorEmail ||
-            file.author_name ||
-            file.author_email ||
-            file.email ||
-            'Unknown author'
-          );
-          
-          // Get document author (from document analysis) - show "unknown" if not found
-          const documentAuthor = escapeHtml(
-            file.documentAuthor || 
-            file.document_author || 
-            'unknown'
-          );
-          
-          // Get publish date - show "unknown" if not found
-          const publishDate = escapeHtml(
-            file.publishDate || 
-            file.publish_date || 
-            'unknown'
-          );
-
           // Debug logging to help identify data issues
           console.log(`File: ${fileName}`, {
             summary: file.summary ? file.summary.substring(0, 50) + '...' : 'N/A',
@@ -1420,43 +1628,8 @@
             </div>
           </div>
         </div>
-        <div class="file-hover-card" role="tooltip">
-          <div class="file-hover-card-content">
-            <div class="hover-card-header">
-              <span class="hover-card-title">${safeFileName}</span>
-              <span class="hover-card-timestamp">${lastModified}</span>
-            </div>
-            <div class="hover-card-meta">
-              <span class="hover-card-label">Uploaded By</span>
-              <span class="hover-card-value">${authorDisplay}</span>
-            </div>
-            <div class="hover-card-meta">
-              <span class="hover-card-label">Document Author</span>
-              <span class="hover-card-value">${documentAuthor}</span>
-            </div>
-            <div class="hover-card-meta">
-              <span class="hover-card-label">Publish Date</span>
-              <span class="hover-card-value">${publishDate}</span>
-            </div>
-            <div class="hover-card-summary">
-              ${summaryHtml}
-            </div>
-          </div>
-        </div>
         <button class="file-close-btn" data-filepath="${filePathAttr}">✕</button>
       `;
-
-          const tooltipPlacement = index < 3 ? 'fixed-below' : 'fixed-above';
-          fileItem.dataset.tooltipPlacement = tooltipPlacement;
-
-          const tooltip = fileItem.querySelector(".file-hover-card");
-          if (tooltip) {
-            if (tooltipPlacement === 'fixed-above') {
-              tooltip.classList.add("position-above");
-            } else {
-              tooltip.classList.remove("position-above");
-            }
-          }
 
           // Add click event for file selection
           const fileItemMain = fileItem.querySelector(".file-item-main");
@@ -1479,15 +1652,27 @@
             });
           }
 
-          // Hover tooltip is now handled by CSS only - no JavaScript needed
+          // Add hover event listeners for showing file details
+          fileItem.addEventListener("mouseenter", (e) => {
+            e.stopPropagation();
+            // Clear any pending hide timeout first
+            if (detailHideTimeoutId) {
+              clearTimeout(detailHideTimeoutId);
+              detailHideTimeoutId = null;
+            }
+            showFileDetailCard(file);
+          });
+
+          fileItem.addEventListener("mouseleave", (e) => {
+            e.stopPropagation();
+            hideFileDetailCard();
+          });
+
           sidebarContent.appendChild(fileItem);
-          setupTooltipAutoScroll(fileItem, tooltipSpacer);
         } catch (error) {
           console.error("Error creating file item:", error, file);
         }
       });
-
-      sidebarContent.appendChild(tooltipSpacer);
     }
 
 
@@ -1708,50 +1893,10 @@
       // Reuse the unified sorter/renderer which reads the current search input value
       sortAndDisplayFiles();
     }
-    function setupTooltipAutoScroll(fileItem, tooltipSpacer) {
-      const tooltip = fileItem.querySelector(".file-hover-card");
-      const scrollContainer = document.getElementById("sidebarContent");
-
-      if (!tooltip || !scrollContainer) {
-        return;
-      }
-
-      const tooltipHeight = Math.ceil(tooltip.scrollHeight + 24);
-      if (tooltipSpacer && tooltipHeight > Number(tooltipSpacer.dataset.height || 0)) {
-        tooltipSpacer.dataset.height = String(tooltipHeight);
-        tooltipSpacer.style.height = `${tooltipHeight}px`;
-      }
-
-      const tooltipPlacement = fileItem.dataset.tooltipPlacement;
-      if (tooltipPlacement === 'fixed-above') {
-        tooltip.classList.add("position-above");
-        return;
-      }
-      if (tooltipPlacement === 'fixed-below') {
-        tooltip.classList.remove("position-above");
-        return;
-      }
-
-      fileItem.addEventListener("mouseenter", () => {
-        requestAnimationFrame(() => {
-          tooltip.classList.remove("position-above");
-
-          const tooltipRect = tooltip.getBoundingClientRect();
-          const containerRect = scrollContainer.getBoundingClientRect();
-
-          const overflowBottom = tooltipRect.bottom - containerRect.bottom;
-          const overflowTop = containerRect.top - tooltipRect.top;
-
-          if (overflowBottom > 0 && overflowBottom >= Math.max(0, overflowTop)) {
-            tooltip.classList.add("position-above");
-          } else if (overflowTop > 0 && tooltip.classList.contains("position-above")) {
-            tooltip.classList.remove("position-above");
-          }
-        });
-      });
-    }
     // NEW: Event listeners for search and sort
     // Event listeners for search and sort
+    // Removed sidebarContent mouseleave - it was too aggressive and hid the panel when moving between items
+
     window.addEventListener('load', function () {
       // Search input event listener
       const searchInput = document.getElementById('sidebarSearchInput');
