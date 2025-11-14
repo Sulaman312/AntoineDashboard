@@ -419,6 +419,172 @@ body {
   gap: 10px;
 }
 
+/* Backdrop overlay for file detail panel - Hidden */
+.file-detail-backdrop {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.file-detail-panel {
+  /* Positioned relative to sidebar - 20px to the left of sidebar's right edge */
+  position: fixed;
+  top: 50%;
+  left: 340px; /* Default: 320px sidebar width + 20px gap */
+  transform: translateY(-50%) translateX(20px);
+  z-index: 1000;
+  
+  /* Card styling */
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+  
+  /* Sizing */
+  max-width: 400px;
+  width: 380px;
+  max-height: 80vh;
+  box-sizing: border-box;
+  
+  /* Hidden by default */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scrollbar */
+  word-wrap: break-word; /* Break long words */
+  overflow-wrap: break-word; /* Modern property for word breaking */
+  
+  /* Smooth transitions */
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease, left 0.3s ease;
+}
+
+.file-detail-panel.visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(-50%) translateX(0) !important;
+  pointer-events: auto !important;
+}
+
+/* Responsive styles for mobile */
+@media (max-width: 768px) {
+  .file-detail-panel {
+    right: 10px;
+    max-width: calc(100vw - 340px); /* Account for sidebar */
+    width: auto;
+    min-width: 300px;
+    max-height: 85vh;
+    padding: 20px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .file-detail-panel {
+    right: 10px;
+    max-width: calc(100vw - 20px);
+    width: auto;
+    min-width: 280px;
+    padding: 16px;
+  }
+}
+
+.file-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 20px;
+  min-width: 0; /* Allow flex items to shrink below content size */
+  overflow: hidden; /* Prevent overflow */
+}
+
+.file-detail-meta {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  min-width: 0; /* Allow flex items to shrink */
+  overflow: hidden; /* Prevent overflow */
+}
+
+.file-detail-meta > div {
+  min-width: 0; /* Allow flex items to shrink */
+  flex: 1 1 auto; /* Allow items to grow and shrink */
+  max-width: 100%; /* Prevent overflow */
+  overflow: hidden; /* Hide overflow */
+}
+
+.file-detail-summary {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed #cbd5f5;
+}
+
+.detail-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin: 0 0 6px 0;
+}
+
+.detail-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  word-wrap: break-word; /* Break long words */
+  overflow-wrap: break-word; /* Modern property for word breaking */
+  word-break: break-word; /* Break words if needed */
+  hyphens: auto; /* Add hyphens when breaking words */
+  max-width: 100%; /* Ensure it doesn't exceed container */
+  overflow: hidden; /* Hide overflow */
+  line-height: 1.5; /* Better line spacing for wrapped text */
+  white-space: normal; /* Allow text to wrap to new lines */
+}
+
+.detail-summary-text {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  max-width: 100%;
+}
+
+.detail-summary-text p {
+  margin: 0 0 8px 0;
+  color: #475569;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.detail-summary-text p:last-child {
+  margin-bottom: 0;
+}
+
+.detail-dates {
+  min-width: 0; /* Allow shrinking */
+  flex: 0 1 auto; /* Don't grow, but can shrink */
+  max-width: 100%; /* Prevent overflow */
+  overflow: hidden; /* Hide overflow */
+}
+
+.file-detail-header > div {
+  min-width: 0; /* Allow flex items to shrink */
+  flex: 1 1 auto; /* Allow items to grow and shrink */
+  max-width: 100%; /* Prevent overflow */
+  overflow: hidden; /* Hide overflow */
+}
+
 /* Selected File Item */
 .selected-file-item {
   display: flex;
@@ -1052,7 +1218,7 @@ body {
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   transition: left 0.3s ease;
   z-index: 1000;
-  overflow: visible; /* Allow tooltips to overflow outside the sidebar */
+  overflow: visible; /* Allow detail overlays to overflow outside the sidebar */
   display: flex;
   flex-direction: column;
 }
@@ -1212,192 +1378,6 @@ body {
   z-index: 100 !important;
 }
 
-.file-hover-card {
-  position: absolute;
-  width: 300px;
-  left: 50%;
-  top: calc(100% + 18px);
-  transform: translateX(-50%) translateY(-8px);
-  padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.3s ease-in, transform 0.3s ease-in, visibility 0.3s ease-in;
-  z-index: 10000 !important; /* Highest z-index to appear above everything */
-  white-space: normal;
-  max-height: none;
-  overflow: visible;
-  display: block;
-}
-
-/* Show tooltip on hover */
-.file-item:hover .file-hover-card {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-  pointer-events: auto;
-  z-index: 100 !important;
-}
-
-.file-hover-card.position-above {
-  top: auto;
-  bottom: calc(100% + 18px);
-  transform: translateX(-50%) translateY(8px);
-}
-
-.file-item:hover .file-hover-card.position-above {
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Tooltip content wrapper */
-.file-hover-card-content {
-  position: relative;
-  width: 100%;
-  background: #374151;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 99999 !important;
-}
-
-/* Tooltip arrow pointing up towards the file card */
-.file-hover-card::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 100%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 0.85em solid transparent;
-  border-right: 0.85em solid transparent;
-  border-bottom: 0.85em solid #374151;
-  z-index: -1;
-}
-
-.file-hover-card.position-above::after {
-  bottom: auto;
-  top: 100%;
-  border-bottom: none;
-  border-left: 0.85em solid transparent;
-  border-right: 0.85em solid transparent;
-  border-top: 0.85em solid #374151;
-}
-
-.hover-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.hover-card-title {
-  font-size: 14px;
-  font-weight: 400;
-  color: #f3f4f6;
-  line-height: 1.2;
-  width: 100%;
-}
-
-.hover-card-timestamp {
-  font-size: 12px;
-  color: #9ca3af;
-  flex-shrink: 0;
-}
-
-/* Summary section with animated content */
-.hover-card-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.hover-card-summary-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.2;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.3s ease-in 0.3s, transform 0.3s ease-in 0.3s;
-}
-
-.file-item:hover .hover-card-summary-item {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.hover-card-summary-label {
-  color: #9ca3af;
-}
-
-.hover-card-summary-value {
-  color: #f3f4f6;
-  font-weight: 500;
-}
-
-.hover-summary-line {
-  margin: 0;
-  font-size: 13px;
-  color: #d1d5db;
-  line-height: 1.5;
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.3s ease-in 0.5s, transform 0.3s ease-in 0.5s;
-}
-
-.file-item:hover .hover-summary-line {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.hover-card-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #4b5563;
-}
-
-.hover-card-label {
-  font-size: 12px;
-  font-weight: 400;
-  color: #9ca3af;
-}
-
-.hover-card-value {
-  font-size: 13px;
-  color: #f3f4f6;
-  font-weight: 500;
-  text-align: right;
-}
-
-@media (max-width: 1200px) {
-  .file-hover-card {
-    width: 260px;
-  }
-}
-
-@media (max-width: 992px) {
-  .file-hover-card {
-    width: min(300px, 90vw);
-  }
-}
-
-/* NEW: File item main container */
 .file-item-main {
   display: flex;
   align-items: flex-start;
